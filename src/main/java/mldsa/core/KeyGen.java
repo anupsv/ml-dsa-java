@@ -73,9 +73,9 @@ public final class KeyGen {
         // Step 3: Expand A from rho
         Polynomial[][] A = ExpandA.expandNTT(params, rho);
 
-        // Step 4: Sample s1 and s2 from centered binomial distribution
-        PolynomialVector s1 = Sampler.sampleCBD(params, rhoPrime, 0, l);
-        PolynomialVector s2 = Sampler.sampleCBD(params, rhoPrime, l, k);
+        // Step 4: Sample s1 and s2 from bounded distribution (ExpandS / RejBoundedPoly)
+        PolynomialVector s1 = Sampler.sampleBounded(params, rhoPrime, 0, l);
+        PolynomialVector s2 = Sampler.sampleBounded(params, rhoPrime, l, k);
 
         // Step 5: Compute t = A * NTT(s1) + s2
         // First, transform s1 to NTT domain

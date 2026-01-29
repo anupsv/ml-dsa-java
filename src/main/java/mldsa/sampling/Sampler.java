@@ -8,7 +8,7 @@ import mldsa.poly.PolynomialVector;
 
 /**
  * Sampling operations for ML-DSA.
- * Includes centered binomial distribution for secrets and challenge polynomial generation.
+ * Includes bounded rejection sampling for secrets and challenge polynomial generation.
  */
 public final class Sampler {
 
@@ -17,100 +17,102 @@ public final class Sampler {
     }
 
     /**
-     * Samples a polynomial vector from the centered binomial distribution.
-     * Coefficients are in [-eta, eta].
+     * Samples a polynomial vector with coefficients in [-eta, eta].
+     * Uses rejection sampling per FIPS 204 (ExpandS / RejBoundedPoly).
      *
      * @param params the parameter set (determines eta)
-     * @param seed the seed for sampling
+     * @param seed the seed for sampling (rho')
      * @param nonce starting nonce value
      * @param dimension the vector dimension (k or l)
      * @return a polynomial vector with coefficients in [-eta, eta] reduced mod q
      */
-    public static PolynomialVector sampleCBD(Parameters params, byte[] seed, int nonce, int dimension) {
+    public static PolynomialVector sampleBounded(Parameters params, byte[] seed, int nonce, int dimension) {
         Polynomial[] polys = new Polynomial[dimension];
         for (int i = 0; i < dimension; i++) {
-            polys[i] = sampleCBDPolynomial(params, seed, nonce + i);
+            polys[i] = sampleBoundedPolynomial(params, seed, nonce + i);
         }
         return new PolynomialVector(polys);
     }
 
     /**
-     * Samples a single polynomial from the centered binomial distribution.
+     * Backwards-compatible name; this is not CBD in ML-DSA (FIPS 204).
+     *
+     * @deprecated Use {@link #sampleBounded(Parameters, byte[], int, int)}.
+     */
+    @Deprecated
+    public static PolynomialVector sampleCBD(Parameters params, byte[] seed, int nonce, int dimension) {
+        return sampleBounded(params, seed, nonce, dimension);
+    }
+
+    /**
+     * Samples a single polynomial with coefficients in [-eta, eta] using rejection sampling.
      *
      * @param params the parameter set (determines eta)
      * @param seed the seed
      * @param nonce the nonce value
      * @return a polynomial with coefficients in [-eta, eta] reduced mod q
      */
-    public static Polynomial sampleCBDPolynomial(Parameters params, byte[] seed, int nonce) {
+    public static Polynomial sampleBoundedPolynomial(Parameters params, byte[] seed, int nonce) {
         int eta = params.eta();
-
-        // Create input: seed || nonce (as 2-byte little-endian)
-        byte[] input = new byte[seed.length + 2];
-        System.arraycopy(seed, 0, input, 0, seed.length);
-        input[seed.length] = (byte) (nonce & 0xFF);
-        input[seed.length + 1] = (byte) ((nonce >> 8) & 0xFF);
-
-        // Number of bytes needed: eta * n / 4
-        int bytesNeeded = eta * Parameters.N / 4;
-        byte[] stream = Shake.shake256(input, bytesNeeded);
-
         int[] coeffs = new int[Parameters.N];
+        int coeffIndex = 0;
 
-        if (eta == 2) {
-            sampleCBD2(coeffs, stream);
-        } else if (eta == 4) {
-            sampleCBD4(coeffs, stream);
-        } else {
-            throw new IllegalArgumentException("Unsupported eta value: " + eta);
+        Shake.ShakeDigest xof = Shake.newShake256();
+        xof.update(seed);
+        xof.update((byte) (nonce & 0xFF));
+        xof.update((byte) ((nonce >> 8) & 0xFF));
+
+        // SHAKE256 has a 136-byte rate; squeeze in blocks to avoid per-byte allocations.
+        byte[] stream = new byte[136];
+        int streamIndex = stream.length;
+
+        while (coeffIndex < Parameters.N) {
+            if (streamIndex == stream.length) {
+                xof.digest(stream, 0, stream.length);
+                streamIndex = 0;
+            }
+            byte b = stream[streamIndex++];
+            int low = b & 0x0F;
+            int high = (b >>> 4) & 0x0F;
+
+            int coeff = coeffFromHalfByte(low, eta);
+            if (coeff != REJECT) {
+                coeffs[coeffIndex++] = toModQ(coeff);
+                if (coeffIndex == Parameters.N) {
+                    break;
+                }
+            }
+
+            coeff = coeffFromHalfByte(high, eta);
+            if (coeff != REJECT) {
+                coeffs[coeffIndex++] = toModQ(coeff);
+            }
         }
 
         return new Polynomial(coeffs);
     }
 
-    /**
-     * CBD sampling for eta = 2.
-     * Uses 4 bits per coefficient (2 bits for each sum).
-     */
-    private static void sampleCBD2(int[] coeffs, byte[] stream) {
-        int coeffIndex = 0;
-        for (int i = 0; i < stream.length && coeffIndex < Parameters.N; i++) {
-            int b = stream[i] & 0xFF;
+    private static final int REJECT = Integer.MIN_VALUE;
 
-            // Extract 4 coefficients from each byte
-            // Each coefficient uses 2 bits (sum of 2 bits - sum of 2 bits)
-            for (int j = 0; j < 4 && coeffIndex < Parameters.N; j++) {
-                int bits = (b >> (2 * j)) & 0x03;
-                int a = bits & 1;
-                int bb = (bits >> 1) & 1;
-                int coeff = a - bb;
-                // Convert to [0, q): if negative, add q
-                coeffs[coeffIndex++] = coeff < 0 ? coeff + Parameters.Q : coeff;
+    private static int coeffFromHalfByte(int b, int eta) {
+        if (eta == 2) {
+            if (b >= 15) {
+                return REJECT;
             }
+            int mapped = (b < 5) ? b : (b < 10) ? (b - 5) : (b - 10);
+            return mapped <= 2 ? 2 - mapped : -(mapped - 2);
         }
+        if (eta == 4) {
+            if (b >= 9) {
+                return REJECT;
+            }
+            return b <= 4 ? 4 - b : -(b - 4);
+        }
+        throw new IllegalArgumentException("Unsupported eta value: " + eta);
     }
 
-    /**
-     * CBD sampling for eta = 4.
-     * Uses 8 bits per coefficient (4 bits for each sum).
-     */
-    private static void sampleCBD4(int[] coeffs, byte[] stream) {
-        int coeffIndex = 0;
-        for (int i = 0; i < stream.length && coeffIndex < Parameters.N; i++) {
-            int b = stream[i] & 0xFF;
-
-            // Extract 2 coefficients from each byte
-            // Each coefficient uses 4 bits
-            for (int j = 0; j < 2 && coeffIndex < Parameters.N; j++) {
-                int bits = (b >> (4 * j)) & 0x0F;
-                // Count bits: sum of lower 2 bits - sum of upper 2 bits
-                int a = (bits & 1) + ((bits >> 1) & 1);
-                int bb = ((bits >> 2) & 1) + ((bits >> 3) & 1);
-                int coeff = a - bb;
-                // Convert to [0, q): if negative, add q
-                coeffs[coeffIndex++] = coeff < 0 ? coeff + Parameters.Q : coeff;
-            }
-        }
+    private static int toModQ(int coeff) {
+        return coeff < 0 ? coeff + Parameters.Q : coeff;
     }
 
     /**

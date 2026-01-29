@@ -291,6 +291,19 @@ public final class Keccak {
         public byte[] squeeze(int length) {
             finalizeAbsorb();
             byte[] output = new byte[length];
+            squeeze(output, 0, length);
+            return output;
+        }
+
+        /**
+         * Squeezes output bytes into a caller-provided buffer.
+         *
+         * @param output destination buffer
+         * @param offset starting offset in destination
+         * @param length number of bytes to write
+         */
+        public void squeeze(byte[] output, int offset, int length) {
+            finalizeAbsorb();
             int outputOffset = 0;
 
             while (outputOffset < length) {
@@ -299,18 +312,16 @@ public final class Keccak {
                     squeezeOffset = 0;
                 }
                 int toCopy = Math.min(rate - squeezeOffset, length - outputOffset);
-                extractBytesFromState(state, output, outputOffset, toCopy);
+                extractBytesFromState(state, output, offset + outputOffset, toCopy);
                 // Adjust for squeeze offset within block
                 for (int i = 0; i < toCopy; i++) {
                     int laneIndex = (squeezeOffset + i) / 8;
                     int byteIndex = (squeezeOffset + i) % 8;
-                    output[outputOffset + i] = (byte) (state[laneIndex] >>> (8 * byteIndex));
+                    output[offset + outputOffset + i] = (byte) (state[laneIndex] >>> (8 * byteIndex));
                 }
                 squeezeOffset += toCopy;
                 outputOffset += toCopy;
             }
-
-            return output;
         }
 
         /**
