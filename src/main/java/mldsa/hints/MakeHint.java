@@ -17,6 +17,7 @@ public final class MakeHint {
     /**
      * Computes hint bit for a single coefficient.
      * Per FIPS 204: MakeHint(z0, r, 2γ2) returns 1 if HighBits(r) ≠ HighBits(r + z0)
+     * Constant-time implementation using branchless arithmetic.
      *
      * @param z0 the adjustment value (first argument)
      * @param r the reference value (second argument)
@@ -27,10 +28,17 @@ public final class MakeHint {
         // HighBits(r) vs HighBits(r + z0 mod q)
         int highR = Decompose.highBits(r, gamma2);
         long sum = ((long) r + z0) % Parameters.Q;
-        if (sum < 0) sum += Parameters.Q;
+
+        // Branchless: add Q if negative
+        int isNeg = (int) (sum >> 63);  // -1 if negative, 0 otherwise
+        sum += isNeg & Parameters.Q;
+
         int highSum = Decompose.highBits((int) sum, gamma2);
 
-        return highR != highSum ? 1 : 0;
+        // Branchless: return 1 if not equal, 0 if equal
+        int diff = highR ^ highSum;
+        // (diff | -diff) >>> 31 gives 1 if diff != 0, 0 if diff == 0
+        return (diff | (-diff)) >>> 31;
     }
 
     /**

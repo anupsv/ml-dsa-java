@@ -1,5 +1,6 @@
 package mldsa.poly;
 
+import mldsa.ct.ConstantTime;
 import mldsa.params.Parameters;
 
 import java.util.Arrays;
@@ -96,8 +97,18 @@ public final class Polynomial {
     }
 
     /**
+     * Securely zeros all coefficients.
+     * Uses memory fence to prevent compiler optimization from removing the zeroing.
+     * Call this method when the polynomial contains secret material that should be erased.
+     */
+    public void destroy() {
+        ConstantTime.zero(coeffs);
+    }
+
+    /**
      * Computes the infinity norm (maximum absolute coefficient value).
      * Uses centered reduction so coefficients are in [-(q-1)/2, (q-1)/2].
+     * Constant-time implementation using branchless arithmetic.
      *
      * @return the infinity norm
      */
@@ -105,19 +116,24 @@ public final class Polynomial {
         int max = 0;
         int halfQ = (Parameters.Q - 1) / 2;
         for (int c : coeffs) {
-            // Center reduce: if c > (q-1)/2, treat as c - q
-            int centered = c > halfQ ? c - Parameters.Q : c;
-            int abs = centered < 0 ? -centered : centered;
-            if (abs > max) {
-                max = abs;
-            }
+            // Branchless center reduction: if c > halfQ, compute c - Q
+            int overHalf = (halfQ - c) >> 31;  // -1 if c > halfQ, 0 otherwise
+            int centered = c + (overHalf & (-Parameters.Q));
+
+            // Branchless absolute value
+            int sign = centered >> 31;  // -1 if negative, 0 otherwise
+            int abs = (centered ^ sign) - sign;
+
+            // Branchless max: update max if abs > max
+            int isGreater = (max - abs) >> 31;  // -1 if abs > max, 0 otherwise
+            max = (isGreater & abs) | (~isGreater & max);
         }
         return max;
     }
 
     /**
      * Checks if all coefficients are within the bound [-bound, bound] (centered).
-     * Constant-time implementation.
+     * Constant-time implementation using branchless arithmetic to prevent timing leaks.
      *
      * @param bound the bound to check against
      * @return true if all coefficients satisfy |coefficient| <= bound
@@ -126,9 +142,14 @@ public final class Polynomial {
         int halfQ = (Parameters.Q - 1) / 2;
         int exceeded = 0;
         for (int c : coeffs) {
-            // Center reduce
-            int centered = c > halfQ ? c - Parameters.Q : c;
-            int abs = centered < 0 ? -centered : centered;
+            // Branchless center reduction
+            int overHalf = (halfQ - c) >> 31;  // -1 if c > halfQ, 0 otherwise
+            int centered = c + (overHalf & (-Parameters.Q));
+
+            // Branchless absolute value
+            int sign = centered >> 31;  // -1 if negative, 0 otherwise
+            int abs = (centered ^ sign) - sign;
+
             // Set bit if exceeded (constant-time OR accumulation)
             exceeded |= (bound - abs) >> 31;
         }
