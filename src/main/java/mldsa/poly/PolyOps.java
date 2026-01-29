@@ -1,5 +1,6 @@
 package mldsa.poly;
 
+import mldsa.ct.ConstantTime;
 import mldsa.ntt.Montgomery;
 import mldsa.ntt.NTT;
 import mldsa.params.Parameters;
@@ -82,6 +83,7 @@ public final class PolyOps {
 
     /**
      * Negates a polynomial: result = -a mod q.
+     * Constant-time implementation using branchless arithmetic.
      *
      * @param a the polynomial to negate
      * @return -a mod q
@@ -91,7 +93,10 @@ public final class PolyOps {
         int[] ra = a.coefficients();
         int[] rc = result.coefficients();
         for (int i = 0; i < Parameters.N; i++) {
-            rc[i] = ra[i] == 0 ? 0 : Parameters.Q - ra[i];
+            // Branchless: Q - a[i], but keep 0 as 0
+            int neg = Parameters.Q - ra[i];
+            int isZero = ConstantTime.equals(ra[i], 0);  // -1 if zero, 0 otherwise
+            rc[i] = ConstantTime.select(isZero, 0, neg);
         }
         return result;
     }

@@ -1,8 +1,11 @@
 package mldsa;
 
 import mldsa.ct.ConstantTime;
+import mldsa.params.Parameters;
+import mldsa.poly.Polynomial;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.RepeatedTest;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -172,5 +175,200 @@ class ConstantTimeTests {
 
         // 0 should be < maxUnsigned
         assertEquals(-1, ConstantTime.lessThanUnsigned(0, maxUnsigned));
+    }
+
+    @Test
+    @DisplayName("Constant-time absolute value")
+    void testAbs() {
+        assertEquals(42, ConstantTime.abs(42));
+        assertEquals(42, ConstantTime.abs(-42));
+        assertEquals(0, ConstantTime.abs(0));
+        assertEquals(Integer.MAX_VALUE, ConstantTime.abs(Integer.MAX_VALUE));
+        // Note: abs(Integer.MIN_VALUE) overflows, which is expected behavior
+    }
+
+    @Test
+    @DisplayName("Constant-time max")
+    void testMax() {
+        assertEquals(10, ConstantTime.max(5, 10));
+        assertEquals(10, ConstantTime.max(10, 5));
+        assertEquals(5, ConstantTime.max(5, 5));
+        assertEquals(5, ConstantTime.max(-10, 5));
+        assertEquals(-5, ConstantTime.max(-10, -5));
+    }
+
+    @Test
+    @DisplayName("Constant-time min")
+    void testMin() {
+        assertEquals(5, ConstantTime.min(5, 10));
+        assertEquals(5, ConstantTime.min(10, 5));
+        assertEquals(5, ConstantTime.min(5, 5));
+        assertEquals(-10, ConstantTime.min(-10, 5));
+        assertEquals(-10, ConstantTime.min(-10, -5));
+    }
+
+    @Test
+    @DisplayName("Constant-time center reduction")
+    void testCenterReduce() {
+        int q = Parameters.Q;  // 8380417
+        int halfQ = (q - 1) / 2;  // 4190208
+
+        // Values <= halfQ stay unchanged
+        assertEquals(0, ConstantTime.centerReduce(0, q));
+        assertEquals(100, ConstantTime.centerReduce(100, q));
+        assertEquals(halfQ, ConstantTime.centerReduce(halfQ, q));
+
+        // Values > halfQ become negative (x - q)
+        assertEquals(halfQ + 1 - q, ConstantTime.centerReduce(halfQ + 1, q));
+        assertEquals(q - 1 - q, ConstantTime.centerReduce(q - 1, q));  // -1
+    }
+
+    // ==================== Timing Variance Tests ====================
+    //
+    // Note: These tests measure timing variance as a heuristic for constant-time behavior.
+    // However, JVM timing tests are inherently unreliable due to:
+    // - JIT compilation variance
+    // - GC pauses
+    // - CPU frequency scaling
+    // - Cache effects
+    //
+    // For authoritative constant-time verification, use tools like:
+    // - dudect (statistical timing analysis)
+    // - ctgrind (Valgrind-based analysis)
+    // - Manual assembly inspection
+    //
+    // These tests are informational only and do not fail on timing variance.
+
+    private static final int WARMUP_ITERATIONS = 50000;
+    private static final int TEST_ITERATIONS = 100000;
+
+    @Test
+    @DisplayName("arraysEqual timing analysis (informational)")
+    void testArraysEqualTiming() {
+        byte[] a = new byte[32];
+        byte[] b = new byte[32];
+        byte[] c = new byte[32];
+
+        // Fill with different patterns
+        for (int i = 0; i < 32; i++) {
+            a[i] = (byte) i;
+            b[i] = (byte) i;          // Equal to a
+            c[i] = (byte) (31 - i);   // Different from a
+        }
+
+        // Warmup JIT
+        for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+            ConstantTime.arraysEqual(a, b);
+            ConstantTime.arraysEqual(a, c);
+        }
+
+        // Measure equal case
+        long startEqual = System.nanoTime();
+        for (int i = 0; i < TEST_ITERATIONS; i++) {
+            ConstantTime.arraysEqual(a, b);
+        }
+        long timeEqual = System.nanoTime() - startEqual;
+
+        // Measure unequal case
+        long startUnequal = System.nanoTime();
+        for (int i = 0; i < TEST_ITERATIONS; i++) {
+            ConstantTime.arraysEqual(a, c);
+        }
+        long timeUnequal = System.nanoTime() - startUnequal;
+
+        double ratio = (double) Math.max(timeEqual, timeUnequal) /
+                       Math.min(timeEqual, timeUnequal);
+
+        System.out.printf("[INFO] arraysEqual timing: equal=%dns, unequal=%dns, ratio=%.2f%n",
+                         timeEqual, timeUnequal, ratio);
+        // Note: Assertions removed - JVM timing is unreliable for constant-time verification
+    }
+
+    @Test
+    @DisplayName("checkNorm timing analysis (informational)")
+    void testCheckNormTiming() {
+        // Create polynomial with all coefficients within bound
+        int[] passCoeffs = new int[Parameters.N];
+        for (int i = 0; i < Parameters.N; i++) {
+            passCoeffs[i] = i % 1000;  // Small values, will pass
+        }
+        Polynomial passPoly = new Polynomial(passCoeffs);
+
+        // Create polynomial with coefficients exceeding bound
+        int[] failCoeffs = new int[Parameters.N];
+        for (int i = 0; i < Parameters.N; i++) {
+            failCoeffs[i] = Parameters.Q - 1 - (i % 100);  // Large values near Q, will fail
+        }
+        Polynomial failPoly = new Polynomial(failCoeffs);
+
+        int bound = 2000;
+
+        // Warmup JIT
+        for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+            passPoly.checkNorm(bound);
+            failPoly.checkNorm(bound);
+        }
+
+        // Measure pass case
+        long startPass = System.nanoTime();
+        for (int i = 0; i < TEST_ITERATIONS; i++) {
+            passPoly.checkNorm(bound);
+        }
+        long timePass = System.nanoTime() - startPass;
+
+        // Measure fail case
+        long startFail = System.nanoTime();
+        for (int i = 0; i < TEST_ITERATIONS; i++) {
+            failPoly.checkNorm(bound);
+        }
+        long timeFail = System.nanoTime() - startFail;
+
+        double ratio = (double) Math.max(timePass, timeFail) /
+                       Math.min(timePass, timeFail);
+
+        System.out.printf("[INFO] checkNorm timing: pass=%dns, fail=%dns, ratio=%.2f%n",
+                         timePass, timeFail, ratio);
+        // Note: Assertions removed - JVM timing is unreliable for constant-time verification
+    }
+
+    @Test
+    @DisplayName("infinityNorm timing analysis (informational)")
+    void testInfinityNormTiming() {
+        // Create polynomial with all zeros (max = 0)
+        Polynomial zeroPoly = new Polynomial();
+
+        // Create polynomial with varied coefficients
+        int[] variedCoeffs = new int[Parameters.N];
+        for (int i = 0; i < Parameters.N; i++) {
+            variedCoeffs[i] = (i * 12345) % Parameters.Q;
+        }
+        Polynomial variedPoly = new Polynomial(variedCoeffs);
+
+        // Warmup JIT
+        for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+            zeroPoly.infinityNorm();
+            variedPoly.infinityNorm();
+        }
+
+        // Measure zero case
+        long startZero = System.nanoTime();
+        for (int i = 0; i < TEST_ITERATIONS; i++) {
+            zeroPoly.infinityNorm();
+        }
+        long timeZero = System.nanoTime() - startZero;
+
+        // Measure varied case
+        long startVaried = System.nanoTime();
+        for (int i = 0; i < TEST_ITERATIONS; i++) {
+            variedPoly.infinityNorm();
+        }
+        long timeVaried = System.nanoTime() - startVaried;
+
+        double ratio = (double) Math.max(timeZero, timeVaried) /
+                       Math.min(timeZero, timeVaried);
+
+        System.out.printf("[INFO] infinityNorm timing: zero=%dns, varied=%dns, ratio=%.2f%n",
+                         timeZero, timeVaried, ratio);
+        // Note: Assertions removed - JVM timing is unreliable for constant-time verification
     }
 }
