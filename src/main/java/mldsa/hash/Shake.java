@@ -136,6 +136,17 @@ public final class Shake {
         }
 
         /**
+         * Finalizes the digest and writes output into the provided buffer.
+         *
+         * @param output destination buffer
+         * @param offset starting offset in destination
+         * @param length number of bytes to write
+         */
+        public void digest(byte[] output, int offset, int length) {
+            xof.squeeze(output, offset, length);
+        }
+
+        /**
          * Resets the digest to its initial state.
          */
         public void reset() {

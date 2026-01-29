@@ -86,23 +86,15 @@ public final class ExpandA {
     }
 
     /**
-     * Expands matrix A and applies NTT to each element.
-     * This is the typical usage since A is used in NTT domain.
+     * Expands matrix A for use in the NTT domain.
+     * In ML-DSA (FIPS 204), A is sampled directly in the NTT domain (RejNTTPoly).
+     * This method returns the matrix as-is without applying an additional transform.
      *
      * @param params the parameter set
      * @param rho the 32-byte seed
      * @return the matrix A in NTT domain
      */
     public static Polynomial[][] expandNTT(Parameters params, byte[] rho) {
-        Polynomial[][] matrix = expand(params, rho);
-
-        // Apply NTT to each polynomial
-        for (int i = 0; i < params.k(); i++) {
-            for (int j = 0; j < params.l(); j++) {
-                mldsa.ntt.NTT.forward(matrix[i][j]);
-            }
-        }
-
-        return matrix;
+        return expand(params, rho);
     }
 }
