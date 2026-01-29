@@ -54,8 +54,13 @@ public final class KeyGen {
         int l = params.l();
 
         // Step 1-2: Expand seed using SHAKE256 to get rho, rho', K
-        // H(seed) = rho || rho' || K (32 + 64 + 32 = 128 bytes)
-        byte[] expanded = Shake.shake256(seed, 128);
+        // FIPS 204 Algorithm 6: H(ξ || k || l, 128) with domain separator
+        // H(seed || k || l) = rho || rho' || K (32 + 64 + 32 = 128 bytes)
+        byte[] seedWithDomainSep = new byte[seed.length + 2];
+        System.arraycopy(seed, 0, seedWithDomainSep, 0, seed.length);
+        seedWithDomainSep[seed.length] = (byte) k;
+        seedWithDomainSep[seed.length + 1] = (byte) l;
+        byte[] expanded = Shake.shake256(seedWithDomainSep, 128);
 
         byte[] rho = new byte[32];      // Seed for matrix A
         byte[] rhoPrime = new byte[64]; // Seed for secret vectors
@@ -114,7 +119,7 @@ public final class KeyGen {
      * @param k number of rows in result
      * @return A * v (each element in NTT domain)
      */
-    static PolynomialVector matrixVectorMultiply(Polynomial[][] A, PolynomialVector v, int k) {
+    public static PolynomialVector matrixVectorMultiply(Polynomial[][] A, PolynomialVector v, int k) {
         Polynomial[] result = new Polynomial[k];
 
         for (int i = 0; i < k; i++) {
