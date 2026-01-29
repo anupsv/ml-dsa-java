@@ -142,19 +142,20 @@ public final class ConstantTime {
 
     /**
      * Constant-time byte array comparison.
-     * Returns true if arrays are equal, false otherwise.
-     * Always examines all bytes regardless of when a difference is found.
+     * Returns true if arrays are equal (same length and same contents), false otherwise.
+     * Always examines all bytes of the shorter array regardless of when a difference is found.
+     * The length comparison is also folded into the result to avoid early exit timing leak.
      *
      * @param a first array
      * @param b second array
      * @return true if arrays are equal
      */
     public static boolean arraysEqual(byte[] a, byte[] b) {
-        if (a.length != b.length) {
-            return false;
-        }
-        int diff = 0;
-        for (int i = 0; i < a.length; i++) {
+        // Fold length difference into result (non-zero if lengths differ)
+        int diff = a.length ^ b.length;
+        // Compare all bytes up to the minimum length
+        int minLen = Math.min(a.length, b.length);
+        for (int i = 0; i < minLen; i++) {
             diff |= a[i] ^ b[i];
         }
         return diff == 0;
@@ -237,5 +238,58 @@ public final class ConstantTime {
         int diff = doSwap & (array[i] ^ array[j]);
         array[i] ^= diff;
         array[j] ^= diff;
+    }
+
+    /**
+     * Constant-time absolute value.
+     * Uses bit manipulation to avoid conditional branches.
+     *
+     * @param x the input value
+     * @return |x|
+     */
+    public static int abs(int x) {
+        int sign = x >> 31;  // -1 if negative, 0 if non-negative
+        return (x ^ sign) - sign;
+    }
+
+    /**
+     * Constant-time maximum of two signed values.
+     *
+     * @param a first value
+     * @param b second value
+     * @return max(a, b)
+     */
+    public static int max(int a, int b) {
+        int gt = greaterThan(a, b);  // -1 if a > b, 0 otherwise
+        return select(gt, a, b);
+    }
+
+    /**
+     * Constant-time minimum of two signed values.
+     *
+     * @param a first value
+     * @param b second value
+     * @return min(a, b)
+     */
+    public static int min(int a, int b) {
+        int lt = lessThan(a, b);  // -1 if a < b, 0 otherwise
+        return select(lt, a, b);
+    }
+
+    /**
+     * Constant-time center reduction for ML-DSA.
+     * Maps a value in [0, q) to centered form in [-(q-1)/2, (q-1)/2].
+     * Uses branchless arithmetic to avoid timing side-channels.
+     *
+     * @param x value in [0, q)
+     * @param q the modulus
+     * @return centered value
+     */
+    public static int centerReduce(int x, int q) {
+        int halfQ = (q - 1) / 2;
+        // overHalf is -1 if x > halfQ, 0 otherwise
+        int overHalf = (halfQ - x) >> 31;
+        // If x > halfQ, return x - q; otherwise return x
+        return x + (overHalf & (-q));
     }
 }

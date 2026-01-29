@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.1" name="mldsa.DebugTest" time="0.006" tests="1" errors="0" skipped="0" failures="0">
+  <properties>
+    <property name="java.specification.version" value="25"/>
+    <property name="sun.jnu.encoding" value="UTF-8"/>
+    <property name="java.class.path" value="/Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo/target/test-classes:/Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo/target/classes:/Users/asv/.m2/repository/org/junit/jupiter/junit-jupiter/5.11.0/junit-jupiter-5.11.0.jar:/Users/asv/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.11.0/junit-jupiter-api-5.11.0.jar:/Users/asv/.m2/repository/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/Users/asv/.m2/repository/org/junit/platform/junit-platform-commons/1.11.0/junit-platform-commons-1.11.0.jar:/Users/asv/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/asv/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.11.0/junit-jupiter-params-5.11.0.jar:/Users/asv/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.11.0/junit-jupiter-engine-5.11.0.jar:/Users/asv/.m2/repository/org/junit/platform/junit-platform-engine/1.11.0/junit-platform-engine-1.11.0.jar:"/>
+    <property name="java.vm.vendor" value="Homebrew"/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="java.vendor.url" value="https://github.com/Homebrew/homebrew-core/issues"/>
+    <property name="os.name" value="Mac OS X"/>
+    <property name="java.vm.specification.version" value="25"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="US"/>
+    <property name="sun.boot.library.path" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home/lib"/>
+    <property name="sun.java.command" value="/Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo/target/surefire/surefirebooter-20260128212137863_3.jar /Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo/target/surefire 2026-01-28T21-21-37_824-jvmRun1 surefire-20260128212137863_1tmp surefire_0-20260128212137863_2tmp"/>
+    <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="surefire.test.class.path" value="/Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo/target/test-classes:/Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo/target/classes:/Users/asv/.m2/repository/org/junit/jupiter/junit-jupiter/5.11.0/junit-jupiter-5.11.0.jar:/Users/asv/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.11.0/junit-jupiter-api-5.11.0.jar:/Users/asv/.m2/repository/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/Users/asv/.m2/repository/org/junit/platform/junit-platform-commons/1.11.0/junit-platform-commons-1.11.0.jar:/Users/asv/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/asv/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.11.0/junit-jupiter-params-5.11.0.jar:/Users/asv/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.11.0/junit-jupiter-engine-5.11.0.jar:/Users/asv/.m2/repository/org/junit/platform/junit-platform-engine/1.11.0/junit-platform-engine-1.11.0.jar:"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="/Users/asv"/>
+    <property name="user.language" value="en"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2026-01-20"/>
+    <property name="java.home" value="/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home"/>
+    <property name="file.separator" value="/"/>
+    <property name="basedir" value="/Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="apple.awt.application.name" value="ForkedBooter"/>
+    <property name="surefire.real.class.path" value="/Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo/target/surefire/surefirebooter-20260128212137863_3.jar"/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
+    <property name="java.runtime.version" value="25.0.2"/>
+    <property name="user.name" value="asv"/>
+    <property name="stdout.encoding" value="UTF-8"/>
+    <property name="path.separator" value=":"/>
+    <property name="os.version" value="26.2"/>
+    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
+    <property name="java.vendor.version" value="Homebrew"/>
+    <property name="localRepository" value="/Users/asv/.m2/repository"/>
+    <property name="java.vendor.url.bug" value="https://github.com/Homebrew/homebrew-core/issues"/>
+    <property name="java.io.tmpdir" value="/var/folders/ws/5g3svxc5511dflv429ktscx80000gn/T/"/>
+    <property name="java.version" value="25.0.2"/>
+    <property name="user.dir" value="/Users/asv/conductor/workspaces/ml-dsa-java/santo-domingo"/>
+    <property name="os.arch" value="aarch64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="native.encoding" value="UTF-8"/>
+    <property name="java.library.path" value="/Users/asv/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:."/>
+    <property name="java.vm.info" value="mixed mode, sharing"/>
+    <property name="stderr.encoding" value="UTF-8"/>
+    <property name="java.vendor" value="Homebrew"/>
+    <property name="java.vm.version" value="25.0.2"/>
+    <property name="stdin.encoding" value="UTF-8"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeBig"/>
+    <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
+    <property name="java.class.version" value="69.0"/>
+  </properties>
+  <testcase name="debugSigning" classname="mldsa.DebugTest" time="0.006">
+    <system-out><![CDATA[Testing ML-DSA-44 key generation...
+Key pair generated successfully
+Public key size: 1312
+Private key size: 2560
+
+Parameters:
+  k = 4
+  l = 4
+  gamma1 = 131072
+  gamma2 = 95232
+  beta = 78
+  tau = 39
+
+Testing NTT roundtrip...
+Before NTT: p[0]=0, p[1]=1
+After forward: p[0]=-3148987, p[1]=-11171733
+After inverse: p[0]=0, p[1]=-4186625
+After fromMontgomery: p[0]=0, p[1]=1
+NTT roundtrip OK
+
+Testing Montgomery...
+  a = 12345, toMont(a) = -1853986, fromMont(toMont(a)) = 12345
+
+Testing checkNorm...
+  bound = 130993
+  checkNorm(smallVec, 130993) = true
+  checkNorm(largeVec with gamma1, 130993) = false (should be false)
+
+Testing signing...
+Signing succeeded! Signature size: 2420
+Verification result: true
+
+Debugging z computation step by step...
+s1[0] first 5 coeffs: 1, 1, 8380416, 0, 1
+s1.checkNorm(eta=2) = true
+s1Ntt[0] first 5: -9978086, -10483476, -21750647, -13574191, -4367157
+
+y[0] first 5 coeffs: 8346805, 15904, 95681, 8265173, 8329712
+gamma1 = 131072, beta = 78
+y.checkNorm(gamma1) = true
+
+c has 39 nonzero coeffs (should be tau=39)
+cNtt[0..4]: -503168, -3155202, -6117145, -5023013, -9402945
+
+cs1i (NTT) first 5: -1648659, 2299884, -3582965, 2623078, -2514733
+cs1i (after invNTT) first 5: -1, 5, -2, 3, 1
+cs1i (after reduce) first 5: 8380416, 5, 8380415, 3, 1
+cs1.checkNorm(tau*eta=78) = true
+
+z[0] (y+cs1) first 5: 16727221, 15909, 8476096, 8265176, 8329713
+z[0] (after reduce) first 5: 8346804, 15909, 95679, 8265176, 8329713
+
+zBound = gamma1 - beta - 1 = 130993
+z[0].infinityNorm() = 130627
+z[0].checkNorm(130993) = true
+Max |z| coefficient: 130627 at index 252
+zBound = 130993, exceeds = false
+
+At index 252:
+  y = 130621 (centered: 130621)
+  cs1 = 6 (centered: 6)
+  z = 130627 (centered: 130627)
+  y + cs1 (expected centered) = 130627
+
+--- Analyzing y distribution ---
+Max |y| coefficient: 130939 (gamma1 = 131072)
+y coefficients close to bound: 1 / 1024
+
+Expected y range: [-131071, 131072]
+This is WRONG! y should be in [-gamma1+1, gamma1], not [-gamma1+1, gamma1]
+Checking: 2*gamma1 = 262144, 2^gamma1Bits = 262144
+]]></system-out>
+  </testcase>
+</testsuite>

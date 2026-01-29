@@ -1,0 +1,4 @@
+--patch-module
+mldsa=_
+--add-reads
+mldsa=ALL-UNNAMED

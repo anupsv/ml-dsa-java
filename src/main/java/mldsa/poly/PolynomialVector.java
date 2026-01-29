@@ -100,6 +100,17 @@ public final class PolynomialVector {
         return exceeded == 0;
     }
 
+    /**
+     * Securely zeros all polynomial coefficients in this vector.
+     * Uses memory fence to prevent compiler optimization from removing the zeroing.
+     * Call this method when the vector contains secret material that should be erased.
+     */
+    public void destroy() {
+        for (Polynomial p : polys) {
+            p.destroy();
+        }
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
