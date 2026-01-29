@@ -1,5 +1,6 @@
 package mldsa.hints;
 
+import mldsa.ct.ConstantTime;
 import mldsa.params.Parameters;
 import mldsa.poly.Polynomial;
 import mldsa.poly.PolynomialVector;
@@ -21,7 +22,7 @@ public final class Decompose {
     }
 
     /**
-     * Decomposes a coefficient into high and low parts.
+     * Decomposes a coefficient into high and low parts per FIPS 204.
      * Constant-time implementation.
      *
      * @param r the coefficient in [0, q)
@@ -29,25 +30,20 @@ public final class Decompose {
      * @return array [r1, r0] where r1 is high bits and r0 is low bits
      */
     public static int[] decompose(int r, int gamma2) {
-        // r1 = ceil(r / (2 * gamma2))
-        // r0 = r mod +/- (2 * gamma2)
-
         int twoGamma2 = 2 * gamma2;
 
-        // Compute r1 = (r + gamma2) / (2 * gamma2) (rounding)
-        int r1 = (r + gamma2) / twoGamma2;
-
-        // Compute r0 = r - r1 * 2 * gamma2
+        // r1 = floor((r + gamma2 - 1) / (2 * gamma2))
+        // r0 = r - r1 * 2 * gamma2, with range (-gamma2, gamma2]
+        int r1 = (r + gamma2 - 1) / twoGamma2;
         int r0 = r - r1 * twoGamma2;
 
         // Handle the special case when r1 would equal (q-1)/(2*gamma2)
-        // In this case, we set r1 = 0 and r0 = r0 - 1 (which wraps)
         int maxR1 = (Parameters.Q - 1) / twoGamma2;
 
         // Constant-time: if r1 == maxR1, set r1 = 0 and r0 -= 1
-        int eq = constantTimeEquals(r1, maxR1);
+        int eq = ConstantTime.equals(r1, maxR1);
         r1 = r1 & ~eq; // r1 = 0 if eq, else r1
-        r0 = r0 - eq; // r0 -= 1 if eq
+        r0 = r0 + eq; // r0 -= 1 if eq (eq is -1 or 0)
 
         return new int[] { r1, r0 };
     }
@@ -164,14 +160,5 @@ public final class Decompose {
         return decompose(vec, gamma2)[1];
     }
 
-    /**
-     * Constant-time equality check.
-     * Returns -1 (all 1s) if a == b, 0 otherwise.
-     */
-    private static int constantTimeEquals(int a, int b) {
-        int diff = a ^ b;
-        // If diff == 0, then (diff - 1) >> 31 gives -1
-        // Otherwise it gives 0
-        return (((diff - 1) & ~diff) >> 31);
-    }
+    // Equality helper is provided by mldsa.ct.ConstantTime.
 }

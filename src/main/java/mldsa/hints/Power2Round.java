@@ -9,9 +9,9 @@ import mldsa.poly.PolynomialVector;
  * Rounds coefficients to their high-order bits, used in key generation.
  *
  * <p>For a coefficient r in [0, q), computes (r0, r1) where:
- * - r1 = (r + 2^{d-1}) >> d (high bits)
+ * - r1 = (r + 2^{d-1} - 1) >> d (high bits)
  * - r0 = r - r1 * 2^d (low bits)
- * with r0 in [-2^{d-1}, 2^{d-1}]</p>
+ * with r0 in [-2^{d-1}+1, 2^{d-1}]</p>
  */
 public final class Power2Round {
 
@@ -35,8 +35,8 @@ public final class Power2Round {
      * @return array [r1, r0] where r1 is high bits and r0 is low bits
      */
     public static int[] round(int r) {
-        // r1 = (r + 2^{d-1}) >> d
-        int r1 = (r + HALF_D) >> D;
+        // r1 = (r + 2^{d-1} - 1) >> d
+        int r1 = (r + HALF_D - 1) >> D;
 
         // r0 = r - r1 * 2^d (will be in [-2^{d-1}+1, 2^{d-1}])
         int r0 = r - (r1 << D);
