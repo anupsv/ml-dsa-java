@@ -1,6 +1,7 @@
 mldsa/NTTTests.class
+mldsa/DecomposeTests.class
 mldsa/NISTKATTests.class
 mldsa/ConstantTimeTests.class
 mldsa/MLDSAIntegrationTests.class
 mldsa/MontgomeryTests.class
-mldsa/DebugTest.class
+mldsa/ACVPVectorTests.class
