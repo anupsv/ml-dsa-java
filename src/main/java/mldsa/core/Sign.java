@@ -99,7 +99,6 @@ public final class Sign {
         try {
             // Step 6: Main signing loop (Fiat-Shamir with Aborts)
             int kappa = 0;
-            int[] rejectionCounts = new int[4];  // Track rejection reasons
 
             while (kappa < MAX_ITERATIONS) {
                 // Zero previous iteration's intermediates before creating new ones
@@ -167,14 +166,12 @@ public final class Sign {
 
                 // Condition 1: ||z||_inf >= gamma1 - beta
                 if (!z.checkNorm(gamma1 - beta - 1)) {
-                    rejectionCounts[0]++;
                     kappa++;
                     continue;
                 }
 
                 // Condition 2: ||r0||_inf >= gamma2 - beta
                 if (!checkLowBitsNorm(r0, gamma2 - beta - 1)) {
-                    rejectionCounts[1]++;
                     kappa++;
                     continue;
                 }
@@ -198,14 +195,12 @@ public final class Sign {
                 // Step 6k: Check hint count
                 int hintCount = MakeHint.countHints(h);
                 if (hintCount > omega) {
-                    rejectionCounts[2]++;
                     kappa++;
                     continue;
                 }
 
                 // Condition 3: ||ct0||_inf >= gamma2
                 if (!ct0.checkNorm(gamma2 - 1)) {
-                    rejectionCounts[3]++;
                     kappa++;
                     continue;
                 }
@@ -216,9 +211,8 @@ public final class Sign {
             }
 
             if (signature == null) {
-                throw new RuntimeException("Signing failed after " + MAX_ITERATIONS + " iterations. " +
-                        "Rejections: z_norm=" + rejectionCounts[0] + ", r0_norm=" + rejectionCounts[1] +
-                        ", hint_count=" + rejectionCounts[2] + ", ct0_norm=" + rejectionCounts[3]);
+                // Generic error message to avoid leaking rejection statistics
+                throw new RuntimeException("Signing failed: maximum iterations exceeded");
             }
 
             return signature;

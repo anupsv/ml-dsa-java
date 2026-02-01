@@ -48,8 +48,17 @@ public final class BitPacker {
      * @param data the packed bytes
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial
+     * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static Polynomial unpack(byte[] data, int bits) {
+        int requiredBytes = (Parameters.N * bits + 7) / 8;
+        if (data == null) {
+            throw new IllegalArgumentException("Data cannot be null");
+        }
+        if (data.length < requiredBytes) {
+            throw new IllegalArgumentException("Insufficient data length for unpacking");
+        }
+
         int[] coeffs = new int[Parameters.N];
 
         int bitIndex = 0;
@@ -96,9 +105,19 @@ public final class BitPacker {
      * @param dimension the vector dimension
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial vector
+     * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static PolynomialVector unpackVector(byte[] data, int dimension, int bits) {
         int polyBytes = (Parameters.N * bits + 7) / 8;
+        int requiredBytes = dimension * polyBytes;
+
+        if (data == null) {
+            throw new IllegalArgumentException("Data cannot be null");
+        }
+        if (data.length < requiredBytes) {
+            throw new IllegalArgumentException("Insufficient data length for unpacking vector");
+        }
+
         Polynomial[] polys = new Polynomial[dimension];
 
         for (int i = 0; i < dimension; i++) {
@@ -152,8 +171,17 @@ public final class BitPacker {
      * @param bound the coefficient bound
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial with coefficients in [0, q)
+     * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static Polynomial unpackCentered(byte[] data, int bound, int bits) {
+        int requiredBytes = (Parameters.N * bits + 7) / 8;
+        if (data == null) {
+            throw new IllegalArgumentException("Data cannot be null");
+        }
+        if (data.length < requiredBytes) {
+            throw new IllegalArgumentException("Insufficient data length for unpacking");
+        }
+
         int[] coeffs = new int[Parameters.N];
 
         int bitIndex = 0;
