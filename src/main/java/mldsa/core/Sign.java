@@ -11,10 +11,9 @@ import mldsa.params.Parameters;
 import mldsa.poly.Polynomial;
 import mldsa.poly.PolyOps;
 import mldsa.poly.PolynomialVector;
+import mldsa.ct.SecureRandomHolder;
 import mldsa.sampling.ExpandA;
 import mldsa.sampling.Sampler;
-
-import java.security.SecureRandom;
 
 /**
  * ML-DSA Signing (Algorithm 2 in FIPS 204).
@@ -40,7 +39,7 @@ public final class Sign {
     public static byte[] sign(Parameters params, byte[] privateKey, byte[] message) {
         // Generate random bytes for hedged signing
         byte[] rnd = new byte[32];
-        new SecureRandom().nextBytes(rnd);
+        SecureRandomHolder.nextBytes(rnd);
         return sign(params, privateKey, message, rnd);
     }
 
@@ -88,18 +87,36 @@ public final class Sign {
         byte[] rhoPrime = Shake.shake256(64, K, rnd, mu);
 
         byte[] signature = null;
+
+        // Track intermediate values for zeroization (last iteration's values)
+        PolynomialVector lastY = null;
+        PolynomialVector lastYNtt = null;
+        PolynomialVector lastCs2 = null;
+        PolynomialVector lastCt0 = null;
+        PolynomialVector lastZ = null;
+        Polynomial lastCNtt = null;
+
         try {
             // Step 6: Main signing loop (Fiat-Shamir with Aborts)
             int kappa = 0;
             int[] rejectionCounts = new int[4];  // Track rejection reasons
 
             while (kappa < MAX_ITERATIONS) {
+                // Zero previous iteration's intermediates before creating new ones
+                if (lastY != null) lastY.destroy();
+                if (lastYNtt != null) lastYNtt.destroy();
+                if (lastCs2 != null) lastCs2.destroy();
+                if (lastCt0 != null) lastCt0.destroy();
+                if (lastZ != null) lastZ.destroy();
+                if (lastCNtt != null) lastCNtt.destroy();
+
                 // Step 6a: Sample masking vector y
                 PolynomialVector y = Sampler.sampleMask(params, rhoPrime, kappa * l);
-
+                lastY = y;
 
                 // Step 6b: Compute w = A * NTT(y)
                 PolynomialVector yNtt = y.copy();
+                lastYNtt = yNtt;
                 PolyOps.nttVector(yNtt);
                 PolynomialVector w = KeyGen.matrixVectorMultiply(A, yNtt, k);
                 PolyOps.invNttVector(w);
@@ -118,9 +135,11 @@ public final class Sign {
 
                 // Step 6f: Compute z = y + c * s1
                 Polynomial cNtt = c.copy();
+                lastCNtt = cNtt;
                 NTT.forward(cNtt);
 
                 PolynomialVector z = new PolynomialVector(l);
+                lastZ = z;
                 for (int i = 0; i < l; i++) {
                     Polynomial cs1i = PolyOps.pointwiseMultiply(cNtt, s1Ntt.get(i));
                     NTT.inverse(cs1i);
@@ -128,10 +147,12 @@ public final class Sign {
                     Polynomial zi = PolyOps.add(y.get(i), cs1i);
                     PolyOps.reduce(zi);  // Reduce sum to [0, Q) for norm check
                     z.set(i, zi);
+                    cs1i.destroy();  // Zero immediately after use
                 }
 
                 // Step 6g: Compute r0 = LowBits(w - c * s2)
                 PolynomialVector cs2 = new PolynomialVector(k);
+                lastCs2 = cs2;
                 for (int i = 0; i < k; i++) {
                     Polynomial cs2i = PolyOps.pointwiseMultiply(cNtt, s2Ntt.get(i));
                     NTT.inverse(cs2i);
@@ -160,6 +181,7 @@ public final class Sign {
 
                 // Step 6i: Compute ct0 = c * t0
                 PolynomialVector ct0 = new PolynomialVector(k);
+                lastCt0 = ct0;
                 for (int i = 0; i < k; i++) {
                     Polynomial ct0i = PolyOps.pointwiseMultiply(cNtt, t0Ntt.get(i));
                     NTT.inverse(ct0i);
@@ -210,6 +232,14 @@ public final class Sign {
             s1Ntt.destroy();
             s2Ntt.destroy();
             t0Ntt.destroy();
+
+            // Zero loop intermediates
+            if (lastY != null) lastY.destroy();
+            if (lastYNtt != null) lastYNtt.destroy();
+            if (lastCs2 != null) lastCs2.destroy();
+            if (lastCt0 != null) lastCt0.destroy();
+            if (lastZ != null) lastZ.destroy();
+            if (lastCNtt != null) lastCNtt.destroy();
         }
     }
 

@@ -8,10 +8,9 @@ import mldsa.params.Parameters;
 import mldsa.poly.Polynomial;
 import mldsa.poly.PolyOps;
 import mldsa.poly.PolynomialVector;
+import mldsa.ct.SecureRandomHolder;
 import mldsa.sampling.ExpandA;
 import mldsa.sampling.Sampler;
-
-import java.security.SecureRandom;
 
 /**
  * ML-DSA Key Generation (Algorithm 1 in FIPS 204).
@@ -34,7 +33,7 @@ public final class KeyGen {
      */
     public static byte[][] generate(Parameters params) {
         byte[] seed = new byte[SEED_BYTES];
-        new SecureRandom().nextBytes(seed);
+        SecureRandomHolder.nextBytes(seed);
         return generate(params, seed);
     }
 
