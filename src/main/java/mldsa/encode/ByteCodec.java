@@ -44,12 +44,22 @@ public final class ByteCodec {
      * @param data the encoded public key bytes
      * @param params the parameter set
      * @return an array containing [rho, t1]
+     * @throws IllegalArgumentException if data is null or has invalid length
      */
     public static Object[] decodePublicKey(byte[] data, Parameters params) {
+        int t1Bytes = params.k() * (Parameters.N * 10 / 8);
+        int expectedLength = 32 + t1Bytes;
+
+        if (data == null) {
+            throw new IllegalArgumentException("Public key data cannot be null");
+        }
+        if (data.length < expectedLength) {
+            throw new IllegalArgumentException("Invalid public key length");
+        }
+
         byte[] rho = new byte[32];
         System.arraycopy(data, 0, rho, 0, 32);
 
-        int t1Bytes = params.k() * (Parameters.N * 10 / 8);
         byte[] t1Data = new byte[t1Bytes];
         System.arraycopy(data, 32, t1Data, 0, t1Bytes);
 
@@ -122,12 +132,25 @@ public final class ByteCodec {
      * @param data the encoded private key bytes
      * @param params the parameter set
      * @return an array containing [rho, K, tr, s1, s2, t0]
+     * @throws IllegalArgumentException if data is null or has invalid length
      */
     public static Object[] decodePrivateKey(byte[] data, Parameters params) {
         int eta = params.eta();
         int etaBits = params.etaBits();
         int k = params.k();
         int l = params.l();
+
+        int s1Bytes = l * (Parameters.N * etaBits / 8);
+        int s2Bytes = k * (Parameters.N * etaBits / 8);
+        int t0Bytes = k * (Parameters.N * 13 / 8);
+        int expectedLength = 32 + 32 + 64 + s1Bytes + s2Bytes + t0Bytes;
+
+        if (data == null) {
+            throw new IllegalArgumentException("Private key data cannot be null");
+        }
+        if (data.length < expectedLength) {
+            throw new IllegalArgumentException("Invalid private key length");
+        }
 
         int offset = 0;
 
@@ -147,21 +170,18 @@ public final class ByteCodec {
         offset += 64;
 
         // s1
-        int s1Bytes = l * (Parameters.N * etaBits / 8);
         byte[] s1Data = new byte[s1Bytes];
         System.arraycopy(data, offset, s1Data, 0, s1Bytes);
         PolynomialVector s1 = unpackEtaVector(s1Data, l, eta, etaBits);
         offset += s1Bytes;
 
         // s2
-        int s2Bytes = k * (Parameters.N * etaBits / 8);
         byte[] s2Data = new byte[s2Bytes];
         System.arraycopy(data, offset, s2Data, 0, s2Bytes);
         PolynomialVector s2 = unpackEtaVector(s2Data, k, eta, etaBits);
         offset += s2Bytes;
 
         // t0
-        int t0Bytes = k * (Parameters.N * 13 / 8);
         byte[] t0Data = new byte[t0Bytes];
         System.arraycopy(data, offset, t0Data, 0, t0Bytes);
         PolynomialVector t0 = unpackT0Vector(t0Data, k);
@@ -216,6 +236,7 @@ public final class ByteCodec {
      * @param data the encoded signature bytes
      * @param params the parameter set
      * @return an array containing [cTilde, z, h] or null if invalid
+     * @throws IllegalArgumentException if data is null or has invalid length
      */
     public static Object[] decodeSignature(byte[] data, Parameters params) {
         int l = params.l();
@@ -223,6 +244,17 @@ public final class ByteCodec {
         int omega = params.omega();
         int gamma1Bits = params.gamma1Bits();
         int cTildeBytes = params.cTildeBytes();
+
+        int zBytes = l * (Parameters.N * gamma1Bits / 8);
+        int hBytes = omega + k;
+        int expectedLength = cTildeBytes + zBytes + hBytes;
+
+        if (data == null) {
+            throw new IllegalArgumentException("Signature data cannot be null");
+        }
+        if (data.length < expectedLength) {
+            throw new IllegalArgumentException("Invalid signature length");
+        }
 
         int offset = 0;
 
@@ -232,14 +264,12 @@ public final class ByteCodec {
         offset += cTildeBytes;
 
         // z
-        int zBytes = l * (Parameters.N * gamma1Bits / 8);
         byte[] zData = new byte[zBytes];
         System.arraycopy(data, offset, zData, 0, zBytes);
         PolynomialVector z = BitPacker.unpackZ(zData, params);
         offset += zBytes;
 
         // h (hints)
-        int hBytes = omega + k;
         byte[] hData = new byte[hBytes];
         System.arraycopy(data, offset, hData, 0, hBytes);
         PolynomialVector h = unpackHints(hData, omega, k);

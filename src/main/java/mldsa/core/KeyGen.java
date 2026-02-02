@@ -8,10 +8,9 @@ import mldsa.params.Parameters;
 import mldsa.poly.Polynomial;
 import mldsa.poly.PolyOps;
 import mldsa.poly.PolynomialVector;
+import mldsa.ct.SecureRandomHolder;
 import mldsa.sampling.ExpandA;
 import mldsa.sampling.Sampler;
-
-import java.security.SecureRandom;
 
 /**
  * ML-DSA Key Generation (Algorithm 1 in FIPS 204).
@@ -34,7 +33,7 @@ public final class KeyGen {
      */
     public static byte[][] generate(Parameters params) {
         byte[] seed = new byte[SEED_BYTES];
-        new SecureRandom().nextBytes(seed);
+        SecureRandomHolder.nextBytes(seed);
         return generate(params, seed);
     }
 
@@ -87,11 +86,11 @@ public final class KeyGen {
 
         // Transform back from NTT domain
         PolyOps.invNttVector(t);
-        reduceVector(t);  // Reduce to [0, Q) after inverse NTT
+        PolyOps.reduceVector(t);  // Reduce to [0, Q) after inverse NTT
 
         // Add s2
         t = PolyOps.add(t, s2);
-        reduceVector(t);  // Reduce to [0, Q) before Power2Round
+        PolyOps.reduceVector(t);  // Reduce to [0, Q) before Power2Round
 
         // Step 6: Power2Round to get t1 (high bits) and t0 (low bits)
         PolynomialVector[] tParts = Power2Round.round(t);
@@ -130,14 +129,5 @@ public final class KeyGen {
         }
 
         return new PolynomialVector(result);
-    }
-
-    /**
-     * Reduces all polynomials in a vector to [0, Q).
-     */
-    private static void reduceVector(PolynomialVector v) {
-        for (Polynomial p : v.polynomials()) {
-            PolyOps.reduce(p);
-        }
     }
 }

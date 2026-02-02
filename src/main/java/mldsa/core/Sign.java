@@ -11,10 +11,9 @@ import mldsa.params.Parameters;
 import mldsa.poly.Polynomial;
 import mldsa.poly.PolyOps;
 import mldsa.poly.PolynomialVector;
+import mldsa.ct.SecureRandomHolder;
 import mldsa.sampling.ExpandA;
 import mldsa.sampling.Sampler;
-
-import java.security.SecureRandom;
 
 /**
  * ML-DSA Signing (Algorithm 2 in FIPS 204).
@@ -40,7 +39,7 @@ public final class Sign {
     public static byte[] sign(Parameters params, byte[] privateKey, byte[] message) {
         // Generate random bytes for hedged signing
         byte[] rnd = new byte[32];
-        new SecureRandom().nextBytes(rnd);
+        SecureRandomHolder.nextBytes(rnd);
         return sign(params, privateKey, message, rnd);
     }
 
@@ -88,29 +87,46 @@ public final class Sign {
         byte[] rhoPrime = Shake.shake256(64, K, rnd, mu);
 
         byte[] signature = null;
+
+        // Track intermediate values for zeroization (last iteration's values)
+        PolynomialVector lastY = null;
+        PolynomialVector lastYNtt = null;
+        PolynomialVector lastCs2 = null;
+        PolynomialVector lastCt0 = null;
+        PolynomialVector lastZ = null;
+        Polynomial lastCNtt = null;
+
         try {
             // Step 6: Main signing loop (Fiat-Shamir with Aborts)
             int kappa = 0;
-            int[] rejectionCounts = new int[4];  // Track rejection reasons
 
             while (kappa < MAX_ITERATIONS) {
+                // Zero previous iteration's intermediates before creating new ones
+                if (lastY != null) lastY.destroy();
+                if (lastYNtt != null) lastYNtt.destroy();
+                if (lastCs2 != null) lastCs2.destroy();
+                if (lastCt0 != null) lastCt0.destroy();
+                if (lastZ != null) lastZ.destroy();
+                if (lastCNtt != null) lastCNtt.destroy();
+
                 // Step 6a: Sample masking vector y
                 PolynomialVector y = Sampler.sampleMask(params, rhoPrime, kappa * l);
-
+                lastY = y;
 
                 // Step 6b: Compute w = A * NTT(y)
                 PolynomialVector yNtt = y.copy();
+                lastYNtt = yNtt;
                 PolyOps.nttVector(yNtt);
                 PolynomialVector w = KeyGen.matrixVectorMultiply(A, yNtt, k);
                 PolyOps.invNttVector(w);
-                reduceVector(w);  // Reduce to [0, Q) after inverse NTT
+                PolyOps.reduceVector(w);  // Reduce to [0, Q) after inverse NTT
 
                 // Step 6c: Decompose w into w1 (high bits) and w0 (low bits)
                 PolynomialVector w1 = Decompose.highBits(w, gamma2);
 
                 // Step 6d: Compute challenge hash c_tilde = H(mu || w1_encoded)
                 // c_tilde length is lambda/4 bytes per FIPS 204
-                byte[] w1Encoded = encodeW1(w1, params);
+                byte[] w1Encoded = BitPacker.encodeW1(w1, params);
                 byte[] cTilde = Shake.shake256(params.cTildeBytes(), mu, w1Encoded);
 
                 // Step 6e: Sample challenge polynomial c from c_tilde
@@ -118,9 +134,11 @@ public final class Sign {
 
                 // Step 6f: Compute z = y + c * s1
                 Polynomial cNtt = c.copy();
+                lastCNtt = cNtt;
                 NTT.forward(cNtt);
 
                 PolynomialVector z = new PolynomialVector(l);
+                lastZ = z;
                 for (int i = 0; i < l; i++) {
                     Polynomial cs1i = PolyOps.pointwiseMultiply(cNtt, s1Ntt.get(i));
                     NTT.inverse(cs1i);
@@ -128,10 +146,12 @@ public final class Sign {
                     Polynomial zi = PolyOps.add(y.get(i), cs1i);
                     PolyOps.reduce(zi);  // Reduce sum to [0, Q) for norm check
                     z.set(i, zi);
+                    cs1i.destroy();  // Zero immediately after use
                 }
 
                 // Step 6g: Compute r0 = LowBits(w - c * s2)
                 PolynomialVector cs2 = new PolynomialVector(k);
+                lastCs2 = cs2;
                 for (int i = 0; i < k; i++) {
                     Polynomial cs2i = PolyOps.pointwiseMultiply(cNtt, s2Ntt.get(i));
                     NTT.inverse(cs2i);
@@ -139,27 +159,26 @@ public final class Sign {
                     cs2.set(i, cs2i);
                 }
                 PolynomialVector wMinusCs2 = PolyOps.subtract(w, cs2);
-                reduceVector(wMinusCs2);  // Reduce to [0, Q) for decomposition
+                PolyOps.reduceVector(wMinusCs2);  // Reduce to [0, Q) for decomposition
                 PolynomialVector r0 = Decompose.lowBits(wMinusCs2, gamma2);
 
                 // Step 6h: Check rejection conditions
 
                 // Condition 1: ||z||_inf >= gamma1 - beta
                 if (!z.checkNorm(gamma1 - beta - 1)) {
-                    rejectionCounts[0]++;
                     kappa++;
                     continue;
                 }
 
                 // Condition 2: ||r0||_inf >= gamma2 - beta
                 if (!checkLowBitsNorm(r0, gamma2 - beta - 1)) {
-                    rejectionCounts[1]++;
                     kappa++;
                     continue;
                 }
 
                 // Step 6i: Compute ct0 = c * t0
                 PolynomialVector ct0 = new PolynomialVector(k);
+                lastCt0 = ct0;
                 for (int i = 0; i < k; i++) {
                     Polynomial ct0i = PolyOps.pointwiseMultiply(cNtt, t0Ntt.get(i));
                     NTT.inverse(ct0i);
@@ -170,20 +189,18 @@ public final class Sign {
                 // Step 6j: Compute hints h = MakeHint(-ct0, w - cs2 + ct0)
                 PolynomialVector negCt0 = negate(ct0);
                 PolynomialVector wMinusCs2PlusCt0 = PolyOps.add(wMinusCs2, ct0);
-                reduceVector(wMinusCs2PlusCt0);  // Reduce for MakeHint
+                PolyOps.reduceVector(wMinusCs2PlusCt0);  // Reduce for MakeHint
                 PolynomialVector h = MakeHint.makeHint(negCt0, wMinusCs2PlusCt0, gamma2);
 
                 // Step 6k: Check hint count
                 int hintCount = MakeHint.countHints(h);
                 if (hintCount > omega) {
-                    rejectionCounts[2]++;
                     kappa++;
                     continue;
                 }
 
                 // Condition 3: ||ct0||_inf >= gamma2
                 if (!ct0.checkNorm(gamma2 - 1)) {
-                    rejectionCounts[3]++;
                     kappa++;
                     continue;
                 }
@@ -194,9 +211,8 @@ public final class Sign {
             }
 
             if (signature == null) {
-                throw new RuntimeException("Signing failed after " + MAX_ITERATIONS + " iterations. " +
-                        "Rejections: z_norm=" + rejectionCounts[0] + ", r0_norm=" + rejectionCounts[1] +
-                        ", hint_count=" + rejectionCounts[2] + ", ct0_norm=" + rejectionCounts[3]);
+                // Generic error message to avoid leaking rejection statistics
+                throw new RuntimeException("Signing failed: maximum iterations exceeded");
             }
 
             return signature;
@@ -210,27 +226,15 @@ public final class Sign {
             s1Ntt.destroy();
             s2Ntt.destroy();
             t0Ntt.destroy();
+
+            // Zero loop intermediates
+            if (lastY != null) lastY.destroy();
+            if (lastYNtt != null) lastYNtt.destroy();
+            if (lastCs2 != null) lastCs2.destroy();
+            if (lastCt0 != null) lastCt0.destroy();
+            if (lastZ != null) lastZ.destroy();
+            if (lastCNtt != null) lastCNtt.destroy();
         }
-    }
-
-    /**
-     * Encodes w1 for hashing.
-     */
-    private static byte[] encodeW1(PolynomialVector w1, Parameters params) {
-        int gamma2 = params.gamma2();
-        int w1Bits = (gamma2 == (Parameters.Q - 1) / 88) ? 6 : 4;
-
-        int polyBytes = (Parameters.N * w1Bits + 7) / 8;
-        byte[] result = new byte[w1.dimension() * polyBytes];
-
-        int offset = 0;
-        for (int i = 0; i < w1.dimension(); i++) {
-            byte[] packed = BitPacker.pack(w1.get(i), w1Bits);
-            System.arraycopy(packed, 0, result, offset, packed.length);
-            offset += polyBytes;
-        }
-
-        return result;
     }
 
     /**
@@ -268,14 +272,5 @@ public final class Sign {
             result[i] = PolyOps.negate(v.get(i));
         }
         return new PolynomialVector(result);
-    }
-
-    /**
-     * Reduces all polynomials in a vector to [0, Q).
-     */
-    private static void reduceVector(PolynomialVector v) {
-        for (Polynomial p : v.polynomials()) {
-            PolyOps.reduce(p);
-        }
     }
 }

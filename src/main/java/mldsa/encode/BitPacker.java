@@ -48,8 +48,17 @@ public final class BitPacker {
      * @param data the packed bytes
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial
+     * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static Polynomial unpack(byte[] data, int bits) {
+        int requiredBytes = (Parameters.N * bits + 7) / 8;
+        if (data == null) {
+            throw new IllegalArgumentException("Data cannot be null");
+        }
+        if (data.length < requiredBytes) {
+            throw new IllegalArgumentException("Insufficient data length for unpacking");
+        }
+
         int[] coeffs = new int[Parameters.N];
 
         int bitIndex = 0;
@@ -96,9 +105,19 @@ public final class BitPacker {
      * @param dimension the vector dimension
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial vector
+     * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static PolynomialVector unpackVector(byte[] data, int dimension, int bits) {
         int polyBytes = (Parameters.N * bits + 7) / 8;
+        int requiredBytes = dimension * polyBytes;
+
+        if (data == null) {
+            throw new IllegalArgumentException("Data cannot be null");
+        }
+        if (data.length < requiredBytes) {
+            throw new IllegalArgumentException("Insufficient data length for unpacking vector");
+        }
+
         Polynomial[] polys = new Polynomial[dimension];
 
         for (int i = 0; i < dimension; i++) {
@@ -152,8 +171,17 @@ public final class BitPacker {
      * @param bound the coefficient bound
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial with coefficients in [0, q)
+     * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static Polynomial unpackCentered(byte[] data, int bound, int bits) {
+        int requiredBytes = (Parameters.N * bits + 7) / 8;
+        if (data == null) {
+            throw new IllegalArgumentException("Data cannot be null");
+        }
+        if (data.length < requiredBytes) {
+            throw new IllegalArgumentException("Insufficient data length for unpacking");
+        }
+
         int[] coeffs = new int[Parameters.N];
 
         int bitIndex = 0;
@@ -245,5 +273,32 @@ public final class BitPacker {
         }
 
         return new PolynomialVector(polys);
+    }
+
+    /**
+     * Encodes w1 polynomial vector for hashing in sign/verify.
+     * The bit width depends on gamma2: 6 bits for ML-DSA-44, 4 bits for ML-DSA-65/87.
+     *
+     * @param w1 the w1 polynomial vector
+     * @param params the parameter set
+     * @return the packed bytes for hashing
+     */
+    public static byte[] encodeW1(PolynomialVector w1, Parameters params) {
+        int gamma2 = params.gamma2();
+        // ML-DSA-44: gamma2 = (q-1)/88, w1 in [0,43], needs 6 bits
+        // ML-DSA-65/87: gamma2 = (q-1)/32, w1 in [0,15], needs 4 bits
+        int w1Bits = (gamma2 == (Parameters.Q - 1) / 88) ? 6 : 4;
+
+        int polyBytes = (Parameters.N * w1Bits + 7) / 8;
+        byte[] result = new byte[w1.dimension() * polyBytes];
+
+        int offset = 0;
+        for (int i = 0; i < w1.dimension(); i++) {
+            byte[] packed = pack(w1.get(i), w1Bits);
+            System.arraycopy(packed, 0, result, offset, packed.length);
+            offset += polyBytes;
+        }
+
+        return result;
     }
 }

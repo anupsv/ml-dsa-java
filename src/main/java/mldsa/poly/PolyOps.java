@@ -142,6 +142,7 @@ public final class PolyOps {
     /**
      * Multiplies two polynomials using NTT.
      * Computes a * b in R_q = Z_q[X]/(X^n + 1).
+     * Temporary NTT copies are securely zeroed after use.
      *
      * @param a first polynomial (standard form)
      * @param b second polynomial (standard form)
@@ -151,16 +152,22 @@ public final class PolyOps {
         // Transform both to NTT domain
         Polynomial aNtt = a.copy();
         Polynomial bNtt = b.copy();
-        NTT.forward(aNtt);
-        NTT.forward(bNtt);
+        try {
+            NTT.forward(aNtt);
+            NTT.forward(bNtt);
 
-        // Pointwise multiply
-        Polynomial result = pointwiseMultiply(aNtt, bNtt);
+            // Pointwise multiply
+            Polynomial result = pointwiseMultiply(aNtt, bNtt);
 
-        // Transform back
-        NTT.inverse(result);
+            // Transform back
+            NTT.inverse(result);
 
-        return result;
+            return result;
+        } finally {
+            // Zero temporary NTT copies to prevent secret leakage
+            aNtt.destroy();
+            bNtt.destroy();
+        }
     }
 
     /**
@@ -251,6 +258,18 @@ public final class PolyOps {
     public static void invNttVector(PolynomialVector v) {
         for (Polynomial p : v.polynomials()) {
             NTT.inverse(p);
+        }
+    }
+
+    /**
+     * Reduces all coefficients in each polynomial to [0, q).
+     * Used after operations that may produce values outside this range.
+     *
+     * @param v the vector (modified in place)
+     */
+    public static void reduceVector(PolynomialVector v) {
+        for (Polynomial p : v.polynomials()) {
+            reduce(p);
         }
     }
 
