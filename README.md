@@ -134,22 +134,6 @@ The implementation supports hedged signing per FIPS 204:
 - Default: Random 32-byte `rnd` value for each signature
 - Deterministic mode available for testing with fixed `rnd`
 
-## Project Structure
-
-```
-src/main/java/mldsa/
-├── api/           # Public API (MLDSA, MLDSAKeyPair, MLDSAPrivateKey)
-├── core/          # Core algorithms (KeyGen, Sign, Verify)
-├── ct/            # Constant-time utilities
-├── encode/        # Bit packing and encoding (BitPacker, ByteCodec)
-├── hash/          # SHAKE128/256 implementation
-├── hints/         # Decompose, Power2Round, MakeHint, UseHint
-├── ntt/           # Number Theoretic Transform, Montgomery arithmetic
-├── params/        # Parameter sets (MLDSA44, MLDSA65, MLDSA87)
-├── poly/          # Polynomial and PolynomialVector operations
-└── sampling/      # ExpandA, Sampler (SampleInBall, bounded sampling)
-```
-
 ## References
 
 - [FIPS 204: Module-Lattice-Based Digital Signature Standard](https://csrc.nist.gov/pubs/fips/204/final)
