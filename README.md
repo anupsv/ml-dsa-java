@@ -14,7 +14,7 @@ ML-DSA is a post-quantum digital signature scheme selected by NIST for standardi
 
 ## Requirements
 
-- Java 25+
+- Java 17+
 - Maven 3.8+
 
 ## Installation
