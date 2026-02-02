@@ -1,5 +1,6 @@
 package mldsa.hints;
 
+import mldsa.ct.ConstantTime;
 import mldsa.params.Parameters;
 import mldsa.poly.Polynomial;
 import mldsa.poly.PolynomialVector;
@@ -7,6 +8,7 @@ import mldsa.poly.PolynomialVector;
 /**
  * UseHint operation for ML-DSA.
  * Recovers the high bits of a value using the stored hint.
+ * Implemented in constant-time to prevent timing side-channels.
  */
 public final class UseHint {
 
@@ -16,6 +18,7 @@ public final class UseHint {
 
     /**
      * Uses a hint to recover the correct high bits.
+     * Constant-time implementation using branchless arithmetic.
      *
      * @param hint the hint bit (0 or 1)
      * @param r the value whose high bits to recover
@@ -27,22 +30,21 @@ public final class UseHint {
         int r1 = parts[0];
         int r0 = parts[1];
 
-        if (hint == 0) {
-            return r1;
-        }
-
-        // Hint is 1: need to adjust r1
-        // If r0 > 0, r1 = (r1 + 1) mod m
-        // If r0 <= 0, r1 = (r1 - 1) mod m
-        // where m = (q-1) / (2*gamma2)
-
         int m = (Parameters.Q - 1) / (2 * gamma2);
 
-        if (r0 > 0) {
-            return (r1 + 1) % m;
-        } else {
-            return (r1 - 1 + m) % m;
-        }
+        // Compute both possible adjustments
+        int r1Plus = (r1 + 1) % m;      // Used when hint=1 and r0 > 0
+        int r1Minus = (r1 - 1 + m) % m; // Used when hint=1 and r0 <= 0
+
+        // Branchless selection based on r0 sign
+        // r0Positive is -1 if r0 > 0, else 0
+        int r0Positive = ConstantTime.greaterThan(r0, 0);
+        int adjusted = ConstantTime.select(r0Positive, r1Plus, r1Minus);
+
+        // Branchless selection based on hint
+        // hintMask is -1 if hint != 0, else 0
+        int hintMask = ConstantTime.notEquals(hint, 0);
+        return ConstantTime.select(hintMask, adjusted, r1);
     }
 
     /**

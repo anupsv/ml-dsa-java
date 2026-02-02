@@ -143,19 +143,55 @@ public final class ConstantTime {
     /**
      * Constant-time byte array comparison.
      * Returns true if arrays are equal (same length and same contents), false otherwise.
-     * Always examines all bytes of the shorter array regardless of when a difference is found.
-     * The length comparison is also folded into the result to avoid early exit timing leak.
+     * Always iterates over the maximum length to avoid timing leaks based on array sizes.
+     * Uses branchless index clamping to safely access both arrays.
      *
      * @param a first array
      * @param b second array
      * @return true if arrays are equal
      */
     public static boolean arraysEqual(byte[] a, byte[] b) {
+        // Handle empty array edge cases
+        if (a.length == 0 && b.length == 0) {
+            return true;
+        }
+        if (a.length == 0 || b.length == 0) {
+            return false;
+        }
+
         // Fold length difference into result (non-zero if lengths differ)
         int diff = a.length ^ b.length;
-        // Compare all bytes up to the minimum length
-        int minLen = Math.min(a.length, b.length);
-        for (int i = 0; i < minLen; i++) {
+
+        // Always iterate over the maximum length to avoid timing leak
+        int maxLen = Math.max(a.length, b.length);
+        for (int i = 0; i < maxLen; i++) {
+            // Branchless index clamping: clamp to last valid index if out of bounds
+            // This ensures we always access valid memory while keeping timing constant
+            int aIdx = min(i, a.length - 1);
+            int bIdx = min(i, b.length - 1);
+
+            // XOR values; if index was clamped (i >= length), the comparison
+            // is meaningless but the diff from length mismatch already set
+            diff |= a[aIdx] ^ b[bIdx];
+        }
+        return diff == 0;
+    }
+
+    /**
+     * Constant-time byte array comparison for arrays of known equal length.
+     * This is faster than arraysEqual when lengths are guaranteed to match.
+     *
+     * @param a first array
+     * @param b second array (must be same length as a)
+     * @return true if arrays are equal
+     * @throws IllegalArgumentException if arrays have different lengths
+     */
+    public static boolean arraysEqualFixedLength(byte[] a, byte[] b) {
+        if (a.length != b.length) {
+            throw new IllegalArgumentException("Arrays must have equal length");
+        }
+        int diff = 0;
+        for (int i = 0; i < a.length; i++) {
             diff |= a[i] ^ b[i];
         }
         return diff == 0;

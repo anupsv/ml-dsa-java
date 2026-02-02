@@ -170,6 +170,7 @@ public final class Polynomial {
 
     @Override
     public String toString() {
-        return "Polynomial" + Arrays.toString(Arrays.copyOf(coeffs, Math.min(8, coeffs.length))) + "...";
+        // Don't expose coefficient values to prevent accidental information leakage
+        return "Polynomial[" + coeffs.length + " coefficients]";
     }
 }
