@@ -274,4 +274,31 @@ public final class BitPacker {
 
         return new PolynomialVector(polys);
     }
+
+    /**
+     * Encodes w1 polynomial vector for hashing in sign/verify.
+     * The bit width depends on gamma2: 6 bits for ML-DSA-44, 4 bits for ML-DSA-65/87.
+     *
+     * @param w1 the w1 polynomial vector
+     * @param params the parameter set
+     * @return the packed bytes for hashing
+     */
+    public static byte[] encodeW1(PolynomialVector w1, Parameters params) {
+        int gamma2 = params.gamma2();
+        // ML-DSA-44: gamma2 = (q-1)/88, w1 in [0,43], needs 6 bits
+        // ML-DSA-65/87: gamma2 = (q-1)/32, w1 in [0,15], needs 4 bits
+        int w1Bits = (gamma2 == (Parameters.Q - 1) / 88) ? 6 : 4;
+
+        int polyBytes = (Parameters.N * w1Bits + 7) / 8;
+        byte[] result = new byte[w1.dimension() * polyBytes];
+
+        int offset = 0;
+        for (int i = 0; i < w1.dimension(); i++) {
+            byte[] packed = pack(w1.get(i), w1Bits);
+            System.arraycopy(packed, 0, result, offset, packed.length);
+            offset += polyBytes;
+        }
+
+        return result;
+    }
 }

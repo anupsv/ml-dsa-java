@@ -1,3 +1,4 @@
+mldsa/ct/SecureRandomHolder.class
 mldsa/api/MLDSA.class
 mldsa/hints/Power2Round.class
 mldsa/hints/UseHint.class
@@ -14,6 +15,7 @@ mldsa/poly/Polynomial.class
 mldsa/hash/Shake.class
 mldsa/ntt/Montgomery.class
 mldsa/core/Sign.class
+mldsa/ct/SecureRandomHolder$Holder.class
 mldsa/params/Parameters.class
 mldsa/api/MLDSAException.class
 mldsa/params/MLDSA65.class

@@ -86,11 +86,11 @@ public final class KeyGen {
 
         // Transform back from NTT domain
         PolyOps.invNttVector(t);
-        reduceVector(t);  // Reduce to [0, Q) after inverse NTT
+        PolyOps.reduceVector(t);  // Reduce to [0, Q) after inverse NTT
 
         // Add s2
         t = PolyOps.add(t, s2);
-        reduceVector(t);  // Reduce to [0, Q) before Power2Round
+        PolyOps.reduceVector(t);  // Reduce to [0, Q) before Power2Round
 
         // Step 6: Power2Round to get t1 (high bits) and t0 (low bits)
         PolynomialVector[] tParts = Power2Round.round(t);
@@ -129,14 +129,5 @@ public final class KeyGen {
         }
 
         return new PolynomialVector(result);
-    }
-
-    /**
-     * Reduces all polynomials in a vector to [0, Q).
-     */
-    private static void reduceVector(PolynomialVector v) {
-        for (Polynomial p : v.polynomials()) {
-            PolyOps.reduce(p);
-        }
     }
 }

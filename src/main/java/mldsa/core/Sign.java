@@ -119,14 +119,14 @@ public final class Sign {
                 PolyOps.nttVector(yNtt);
                 PolynomialVector w = KeyGen.matrixVectorMultiply(A, yNtt, k);
                 PolyOps.invNttVector(w);
-                reduceVector(w);  // Reduce to [0, Q) after inverse NTT
+                PolyOps.reduceVector(w);  // Reduce to [0, Q) after inverse NTT
 
                 // Step 6c: Decompose w into w1 (high bits) and w0 (low bits)
                 PolynomialVector w1 = Decompose.highBits(w, gamma2);
 
                 // Step 6d: Compute challenge hash c_tilde = H(mu || w1_encoded)
                 // c_tilde length is lambda/4 bytes per FIPS 204
-                byte[] w1Encoded = encodeW1(w1, params);
+                byte[] w1Encoded = BitPacker.encodeW1(w1, params);
                 byte[] cTilde = Shake.shake256(params.cTildeBytes(), mu, w1Encoded);
 
                 // Step 6e: Sample challenge polynomial c from c_tilde
@@ -159,7 +159,7 @@ public final class Sign {
                     cs2.set(i, cs2i);
                 }
                 PolynomialVector wMinusCs2 = PolyOps.subtract(w, cs2);
-                reduceVector(wMinusCs2);  // Reduce to [0, Q) for decomposition
+                PolyOps.reduceVector(wMinusCs2);  // Reduce to [0, Q) for decomposition
                 PolynomialVector r0 = Decompose.lowBits(wMinusCs2, gamma2);
 
                 // Step 6h: Check rejection conditions
@@ -189,7 +189,7 @@ public final class Sign {
                 // Step 6j: Compute hints h = MakeHint(-ct0, w - cs2 + ct0)
                 PolynomialVector negCt0 = negate(ct0);
                 PolynomialVector wMinusCs2PlusCt0 = PolyOps.add(wMinusCs2, ct0);
-                reduceVector(wMinusCs2PlusCt0);  // Reduce for MakeHint
+                PolyOps.reduceVector(wMinusCs2PlusCt0);  // Reduce for MakeHint
                 PolynomialVector h = MakeHint.makeHint(negCt0, wMinusCs2PlusCt0, gamma2);
 
                 // Step 6k: Check hint count
@@ -238,26 +238,6 @@ public final class Sign {
     }
 
     /**
-     * Encodes w1 for hashing.
-     */
-    private static byte[] encodeW1(PolynomialVector w1, Parameters params) {
-        int gamma2 = params.gamma2();
-        int w1Bits = (gamma2 == (Parameters.Q - 1) / 88) ? 6 : 4;
-
-        int polyBytes = (Parameters.N * w1Bits + 7) / 8;
-        byte[] result = new byte[w1.dimension() * polyBytes];
-
-        int offset = 0;
-        for (int i = 0; i < w1.dimension(); i++) {
-            byte[] packed = BitPacker.pack(w1.get(i), w1Bits);
-            System.arraycopy(packed, 0, result, offset, packed.length);
-            offset += polyBytes;
-        }
-
-        return result;
-    }
-
-    /**
      * Checks if low bits are within the bound.
      * Low bits are centered, so we check |r0| <= bound.
      * Constant-time implementation using branchless arithmetic to prevent timing leaks.
@@ -292,14 +272,5 @@ public final class Sign {
             result[i] = PolyOps.negate(v.get(i));
         }
         return new PolynomialVector(result);
-    }
-
-    /**
-     * Reduces all polynomials in a vector to [0, Q).
-     */
-    private static void reduceVector(PolynomialVector v) {
-        for (Polynomial p : v.polynomials()) {
-            PolyOps.reduce(p);
-        }
     }
 }
