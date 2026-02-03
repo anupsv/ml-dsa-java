@@ -88,18 +88,36 @@ public final class Sign {
         byte[] rhoPrime = Shake.shake256(64, K, rnd, mu);
 
         byte[] signature = null;
+        // Track intermediate values for secure cleanup
+        PolynomialVector y = null;
+        PolynomialVector yNtt = null;
+        PolynomialVector z = null;
+        Polynomial c = null;
+        Polynomial cNtt = null;
+        PolynomialVector cs2 = null;
+        PolynomialVector ct0 = null;
+
         try {
             // Step 6: Main signing loop (Fiat-Shamir with Aborts)
             int kappa = 0;
             int[] rejectionCounts = new int[4];  // Track rejection reasons
 
             while (kappa < MAX_ITERATIONS) {
+                // Clean up previous iteration's intermediates
+                if (y != null) y.destroy();
+                if (yNtt != null) yNtt.destroy();
+                if (z != null) z.destroy();
+                if (c != null) c.destroy();
+                if (cNtt != null) cNtt.destroy();
+                if (cs2 != null) cs2.destroy();
+                if (ct0 != null) ct0.destroy();
+
                 // Step 6a: Sample masking vector y
-                PolynomialVector y = Sampler.sampleMask(params, rhoPrime, kappa * l);
+                y = Sampler.sampleMask(params, rhoPrime, kappa * l);
 
 
                 // Step 6b: Compute w = A * NTT(y)
-                PolynomialVector yNtt = y.copy();
+                yNtt = y.copy();
                 PolyOps.nttVector(yNtt);
                 PolynomialVector w = KeyGen.matrixVectorMultiply(A, yNtt, k);
                 PolyOps.invNttVector(w);
@@ -113,14 +131,17 @@ public final class Sign {
                 byte[] w1Encoded = encodeW1(w1, params);
                 byte[] cTilde = Shake.shake256(params.cTildeBytes(), mu, w1Encoded);
 
+                // Clear w1Encoded after use
+                ConstantTime.zero(w1Encoded);
+
                 // Step 6e: Sample challenge polynomial c from c_tilde
-                Polynomial c = Sampler.sampleInBall(params, cTilde);
+                c = Sampler.sampleInBall(params, cTilde);
 
                 // Step 6f: Compute z = y + c * s1
-                Polynomial cNtt = c.copy();
+                cNtt = c.copy();
                 NTT.forward(cNtt);
 
-                PolynomialVector z = new PolynomialVector(l);
+                z = new PolynomialVector(l);
                 for (int i = 0; i < l; i++) {
                     Polynomial cs1i = PolyOps.pointwiseMultiply(cNtt, s1Ntt.get(i));
                     NTT.inverse(cs1i);
@@ -128,10 +149,11 @@ public final class Sign {
                     Polynomial zi = PolyOps.add(y.get(i), cs1i);
                     PolyOps.reduce(zi);  // Reduce sum to [0, Q) for norm check
                     z.set(i, zi);
+                    cs1i.destroy();  // Clear intermediate
                 }
 
                 // Step 6g: Compute r0 = LowBits(w - c * s2)
-                PolynomialVector cs2 = new PolynomialVector(k);
+                cs2 = new PolynomialVector(k);
                 for (int i = 0; i < k; i++) {
                     Polynomial cs2i = PolyOps.pointwiseMultiply(cNtt, s2Ntt.get(i));
                     NTT.inverse(cs2i);
@@ -159,7 +181,7 @@ public final class Sign {
                 }
 
                 // Step 6i: Compute ct0 = c * t0
-                PolynomialVector ct0 = new PolynomialVector(k);
+                ct0 = new PolynomialVector(k);
                 for (int i = 0; i < k; i++) {
                     Polynomial ct0i = PolyOps.pointwiseMultiply(cNtt, t0Ntt.get(i));
                     NTT.inverse(ct0i);
@@ -204,12 +226,23 @@ public final class Sign {
             // Zero all secret intermediate values (best-effort given Java GC)
             ConstantTime.zero(K);
             ConstantTime.zero(rhoPrime);
+            ConstantTime.zero(mu);
+            // Note: rnd is owned by caller, not zeroed here
             s1.destroy();
             s2.destroy();
             t0.destroy();
             s1Ntt.destroy();
             s2Ntt.destroy();
             t0Ntt.destroy();
+
+            // Clean up loop intermediates
+            if (y != null) y.destroy();
+            if (yNtt != null) yNtt.destroy();
+            if (z != null) z.destroy();
+            if (c != null) c.destroy();
+            if (cNtt != null) cNtt.destroy();
+            if (cs2 != null) cs2.destroy();
+            if (ct0 != null) ct0.destroy();
         }
     }
 

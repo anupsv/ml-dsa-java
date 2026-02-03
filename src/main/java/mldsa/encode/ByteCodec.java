@@ -39,13 +39,21 @@ public final class ByteCodec {
     }
 
     /**
-     * Decodes a public key.
+     * Decodes a public key with validation.
      *
      * @param data the encoded public key bytes
      * @param params the parameter set
      * @return an array containing [rho, t1]
+     * @throws IllegalArgumentException if the public key encoding is invalid
      */
     public static Object[] decodePublicKey(byte[] data, Parameters params) {
+        // Validate size
+        int expectedSize = 32 + params.k() * (Parameters.N * 10 / 8);
+        if (data == null || data.length != expectedSize) {
+            throw new IllegalArgumentException("Invalid public key size: expected " + expectedSize +
+                    ", got " + (data == null ? "null" : data.length));
+        }
+
         byte[] rho = new byte[32];
         System.arraycopy(data, 0, rho, 0, 32);
 
@@ -54,6 +62,18 @@ public final class ByteCodec {
         System.arraycopy(data, 32, t1Data, 0, t1Bytes);
 
         PolynomialVector t1 = BitPacker.unpackVector(t1Data, params.k(), 10);
+
+        // Validate t1 coefficients are in valid range [0, 2^10 - 1]
+        // t1 = HighBits(t) with d=13, so max value is (q-1) / 2^13 ≈ 1022
+        int maxT1 = (1 << 10) - 1;
+        for (Polynomial p : t1.polynomials()) {
+            for (int c : p.coefficients()) {
+                if (c < 0 || c > maxT1) {
+                    throw new IllegalArgumentException("Invalid t1 coefficient: " + c +
+                            " (expected [0, " + maxT1 + "])");
+                }
+            }
+        }
 
         return new Object[] { rho, t1 };
     }
@@ -117,17 +137,29 @@ public final class ByteCodec {
     }
 
     /**
-     * Decodes a private key.
+     * Decodes a private key with validation.
      *
      * @param data the encoded private key bytes
      * @param params the parameter set
      * @return an array containing [rho, K, tr, s1, s2, t0]
+     * @throws IllegalArgumentException if the private key encoding is invalid
      */
     public static Object[] decodePrivateKey(byte[] data, Parameters params) {
         int eta = params.eta();
         int etaBits = params.etaBits();
         int k = params.k();
         int l = params.l();
+
+        // Validate size
+        int s1Bytes = l * (Parameters.N * etaBits / 8);
+        int s2Bytes = k * (Parameters.N * etaBits / 8);
+        int t0Bytes = k * (Parameters.N * 13 / 8);
+        int expectedSize = 32 + 32 + 64 + s1Bytes + s2Bytes + t0Bytes;
+
+        if (data == null || data.length != expectedSize) {
+            throw new IllegalArgumentException("Invalid private key size: expected " + expectedSize +
+                    ", got " + (data == null ? "null" : data.length));
+        }
 
         int offset = 0;
 
@@ -147,26 +179,75 @@ public final class ByteCodec {
         offset += 64;
 
         // s1
-        int s1Bytes = l * (Parameters.N * etaBits / 8);
         byte[] s1Data = new byte[s1Bytes];
         System.arraycopy(data, offset, s1Data, 0, s1Bytes);
         PolynomialVector s1 = unpackEtaVector(s1Data, l, eta, etaBits);
         offset += s1Bytes;
 
+        // Validate s1 coefficients are in valid range [-eta, eta] mod q
+        if (!validateEtaCoefficients(s1, eta)) {
+            throw new IllegalArgumentException("Invalid s1 coefficients: not in [-" + eta + ", " + eta + "]");
+        }
+
         // s2
-        int s2Bytes = k * (Parameters.N * etaBits / 8);
         byte[] s2Data = new byte[s2Bytes];
         System.arraycopy(data, offset, s2Data, 0, s2Bytes);
         PolynomialVector s2 = unpackEtaVector(s2Data, k, eta, etaBits);
         offset += s2Bytes;
 
+        // Validate s2 coefficients
+        if (!validateEtaCoefficients(s2, eta)) {
+            throw new IllegalArgumentException("Invalid s2 coefficients: not in [-" + eta + ", " + eta + "]");
+        }
+
         // t0
-        int t0Bytes = k * (Parameters.N * 13 / 8);
         byte[] t0Data = new byte[t0Bytes];
         System.arraycopy(data, offset, t0Data, 0, t0Bytes);
         PolynomialVector t0 = unpackT0Vector(t0Data, k);
 
+        // Validate t0 coefficients are in valid range [-(2^12-1), 2^12]
+        if (!validateT0Coefficients(t0)) {
+            throw new IllegalArgumentException("Invalid t0 coefficients: not in valid range");
+        }
+
         return new Object[] { rho, K, tr, s1, s2, t0 };
+    }
+
+    /**
+     * Validates that eta-bounded coefficients are in the valid range [-eta, eta] mod q.
+     */
+    private static boolean validateEtaCoefficients(PolynomialVector v, int eta) {
+        int lowerBound = Parameters.Q - eta;  // -eta mod q
+        for (Polynomial p : v.polynomials()) {
+            for (int c : p.coefficients()) {
+                // Valid: c in [0, eta] or c in [q-eta, q-1]
+                boolean validPositive = (c >= 0 && c <= eta);
+                boolean validNegative = (c >= lowerBound && c < Parameters.Q);
+                if (!validPositive && !validNegative) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Validates that t0 coefficients are in the valid range [-(2^12-1), 2^12] mod q.
+     */
+    private static boolean validateT0Coefficients(PolynomialVector t0) {
+        int halfD = 1 << 12; // 4096
+        int lowerBound = Parameters.Q - (halfD - 1);  // -(2^12-1) mod q
+        for (Polynomial p : t0.polynomials()) {
+            for (int c : p.coefficients()) {
+                // Valid: c in [0, 2^12] or c in [q-(2^12-1), q-1]
+                boolean validPositive = (c >= 0 && c <= halfD);
+                boolean validNegative = (c >= lowerBound && c < Parameters.Q);
+                if (!validPositive && !validNegative) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     // ==================== Signature Encoding ====================
@@ -211,7 +292,7 @@ public final class ByteCodec {
     }
 
     /**
-     * Decodes a signature.
+     * Decodes a signature with comprehensive validation.
      *
      * @param data the encoded signature bytes
      * @param params the parameter set
@@ -221,8 +302,15 @@ public final class ByteCodec {
         int l = params.l();
         int k = params.k();
         int omega = params.omega();
+        int gamma1 = params.gamma1();
         int gamma1Bits = params.gamma1Bits();
         int cTildeBytes = params.cTildeBytes();
+
+        // Validate total signature size before parsing
+        int expectedSize = cTildeBytes + l * (Parameters.N * gamma1Bits / 8) + omega + k;
+        if (data == null || data.length != expectedSize) {
+            return null; // Invalid signature size
+        }
 
         int offset = 0;
 
@@ -238,6 +326,12 @@ public final class ByteCodec {
         PolynomialVector z = BitPacker.unpackZ(zData, params);
         offset += zBytes;
 
+        // Validate z coefficients are in canonical range
+        // z coefficients should be in [-(gamma1-1), gamma1] represented mod q
+        if (!validateZCoefficients(z, gamma1)) {
+            return null; // Non-canonical z encoding
+        }
+
         // h (hints)
         int hBytes = omega + k;
         byte[] hData = new byte[hBytes];
@@ -249,6 +343,25 @@ public final class ByteCodec {
         }
 
         return new Object[] { cTilde, z, h };
+    }
+
+    /**
+     * Validates that z coefficients are in the canonical range [-(gamma1-1), gamma1].
+     * Values are stored mod q, so valid range is [0, gamma1] ∪ [q-(gamma1-1), q-1].
+     */
+    private static boolean validateZCoefficients(PolynomialVector z, int gamma1) {
+        int lowerBound = Parameters.Q - (gamma1 - 1);  // Negative values mod q
+        for (Polynomial p : z.polynomials()) {
+            for (int c : p.coefficients()) {
+                // Valid: c in [0, gamma1] or c in [q-(gamma1-1), q-1]
+                boolean validPositive = (c >= 0 && c <= gamma1);
+                boolean validNegative = (c >= lowerBound && c < Parameters.Q);
+                if (!validPositive && !validNegative) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     // ==================== Helper Methods ====================
@@ -438,8 +551,15 @@ public final class ByteCodec {
     }
 
     /**
-     * Unpacks hints from the sparse encoding.
+     * Unpacks hints from the sparse encoding with comprehensive validation.
      * Returns null if the encoding is invalid.
+     *
+     * Validation checks:
+     * - Hint counts are monotonically increasing
+     * - Total hint count doesn't exceed omega
+     * - Indices are within valid range [0, N-1]
+     * - No duplicate indices within a polynomial
+     * - Indices are in ascending order (canonical encoding)
      */
     private static PolynomialVector unpackHints(byte[] data, int omega, int k) {
         Polynomial[] polys = new Polynomial[k];
@@ -451,22 +571,42 @@ public final class ByteCodec {
         for (int i = 0; i < k; i++) {
             int count = data[omega + i] & 0xFF;
             if (count < prevCount || count > omega) {
-                return null; // Invalid encoding
+                return null; // Invalid encoding: count must be non-decreasing and <= omega
             }
 
             int[] coeffs = polys[i].coefficients();
+            int prevIdx = -1; // Track previous index for ascending order check
+
             for (int j = prevCount; j < count; j++) {
                 int idx = data[j] & 0xFF;
+
+                // Check index is in valid range
                 if (idx >= Parameters.N) {
-                    return null; // Invalid index
+                    return null; // Invalid index: must be < N
                 }
+
+                // Check indices are in strictly ascending order (canonical encoding)
+                if (idx <= prevIdx) {
+                    return null; // Invalid encoding: indices must be strictly ascending
+                }
+
+                // Check for duplicates (should not happen with ascending order, but be safe)
                 if (coeffs[idx] != 0) {
                     return null; // Duplicate index
                 }
+
                 coeffs[idx] = 1;
+                prevIdx = idx;
             }
 
             prevCount = count;
+        }
+
+        // Verify remaining bytes (after hint indices but within omega range) are zero
+        for (int j = prevCount; j < omega; j++) {
+            if ((data[j] & 0xFF) != 0) {
+                return null; // Invalid encoding: unused hint slots should be zero
+            }
         }
 
         return new PolynomialVector(polys);
