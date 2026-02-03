@@ -1,6 +1,7 @@
 ML-DSA Test Vectors
 ===================
 
+<<<<<<< HEAD
 The tests in this directory validate that our ML-RSA implementation successfully
 validates the NIST test vectors.  The JSON test vector files are taken from the
 [NIST ACVP repository].  Specifically, `key-gen.json`, `sig-gen.json` and
@@ -19,3 +20,14 @@ The actual tests to be performed are described in the [ACVP documentation].
 [sigVer]: https://github.com/usnistgov/ACVP-Server/blob/65370b8/gen-val/json-files/ML-DSA-sigVer-FIPS204
 [65370b8]: https://github.com/usnistgov/ACVP-Server/commit/65370b8
 [ACVP documentation]: https://github.com/usnistgov/ACVP/tree/master/src/ml-dsa/sections
+=======
+These JSON test vectors are copied from the RustCrypto `signatures` repository:
+`ml-dsa/tests/{key-gen.json,sig-gen.json,sig-ver.json}`.
+
+Per the upstream README, the JSON test vector files are taken from the NIST ACVP
+repository. The current copies of these files were taken from commit 65370b8 of
+that repo (2024-08-15).
+
+Upstream source:
+- https://github.com/RustCrypto/signatures/tree/master/ml-dsa/tests
+>>>>>>> origin/anupsv/security-review

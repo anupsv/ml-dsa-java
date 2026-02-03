@@ -36,6 +36,7 @@ public final class ExpandA {
         return matrix;
     }
 
+<<<<<<< HEAD
     // SHAKE128 rate in bytes (1600 - 2*128) / 8 = 168
     private static final int SHAKE128_RATE = 168;
 
@@ -43,6 +44,11 @@ public final class ExpandA {
      * Samples a single polynomial using rejection sampling from SHAKE128.
      * Coefficients are uniformly distributed in [0, q).
      * Uses streaming XOF to squeeze bytes incrementally as needed.
+=======
+    /**
+     * Samples a single polynomial using rejection sampling from SHAKE128.
+     * Coefficients are uniformly distributed in [0, q).
+>>>>>>> origin/anupsv/security-review
      *
      * @param rho the 32-byte seed
      * @param j the column index (encoded as single byte)
@@ -50,6 +56,7 @@ public final class ExpandA {
      * @return a polynomial with uniform coefficients in [0, q)
      */
     private static Polynomial samplePolynomial(byte[] rho, byte j, byte i) {
+<<<<<<< HEAD
         // Create streaming XOF: absorb rho || j || i
         Shake.ShakeDigest xof = Shake.newShake128();
         xof.update(rho);
@@ -74,6 +81,35 @@ public final class ExpandA {
             int b0 = block[blockIndex++] & 0xFF;
             int b1 = block[blockIndex++] & 0xFF;
             int b2 = block[blockIndex++] & 0xFF;
+=======
+        // Create input: rho || j || i
+        byte[] input = new byte[34];
+        System.arraycopy(rho, 0, input, 0, 32);
+        input[32] = j;
+        input[33] = i;
+
+        // Generate enough bytes for rejection sampling
+        // Each coefficient needs up to 3 bytes; we may need multiple tries
+        // 256 coefficients * 3 bytes * 1.2 (rejection rate) ~ 920 bytes
+        // Use 1024 bytes initially, expand if needed
+        byte[] stream = Shake.shake128(input, 1024);
+
+        int[] coeffs = new int[Parameters.N];
+        int coeffIndex = 0;
+        int byteIndex = 0;
+
+        while (coeffIndex < Parameters.N) {
+            // Expand stream if needed
+            if (byteIndex + 3 > stream.length) {
+                byte[] newStream = Shake.shake128(input, stream.length + 512);
+                stream = newStream;
+            }
+
+            // Sample a 24-bit value and reject if >= q
+            int b0 = stream[byteIndex++] & 0xFF;
+            int b1 = stream[byteIndex++] & 0xFF;
+            int b2 = stream[byteIndex++] & 0xFF;
+>>>>>>> origin/anupsv/security-review
 
             // Combine bytes into 23-bit value (only 23 bits needed for q < 2^23)
             int candidate = b0 | (b1 << 8) | ((b2 & 0x7F) << 16);

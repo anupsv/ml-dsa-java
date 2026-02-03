@@ -1,6 +1,9 @@
 package mldsa.hints;
 
+<<<<<<< HEAD
 import mldsa.ct.ConstantTime;
+=======
+>>>>>>> origin/anupsv/security-review
 import mldsa.params.Parameters;
 import mldsa.poly.Polynomial;
 import mldsa.poly.PolynomialVector;
@@ -8,7 +11,10 @@ import mldsa.poly.PolynomialVector;
 /**
  * UseHint operation for ML-DSA.
  * Recovers the high bits of a value using the stored hint.
+<<<<<<< HEAD
  * Implemented in constant-time to prevent timing side-channels.
+=======
+>>>>>>> origin/anupsv/security-review
  */
 public final class UseHint {
 
@@ -18,7 +24,10 @@ public final class UseHint {
 
     /**
      * Uses a hint to recover the correct high bits.
+<<<<<<< HEAD
      * Constant-time implementation using branchless arithmetic.
+=======
+>>>>>>> origin/anupsv/security-review
      *
      * @param hint the hint bit (0 or 1)
      * @param r the value whose high bits to recover
@@ -30,6 +39,7 @@ public final class UseHint {
         int r1 = parts[0];
         int r0 = parts[1];
 
+<<<<<<< HEAD
         int m = (Parameters.Q - 1) / (2 * gamma2);
 
         // Compute both possible adjustments
@@ -45,6 +55,24 @@ public final class UseHint {
         // hintMask is -1 if hint != 0, else 0
         int hintMask = ConstantTime.notEquals(hint, 0);
         return ConstantTime.select(hintMask, adjusted, r1);
+=======
+        if (hint == 0) {
+            return r1;
+        }
+
+        // Hint is 1: need to adjust r1
+        // If r0 > 0, r1 = (r1 + 1) mod m
+        // If r0 <= 0, r1 = (r1 - 1) mod m
+        // where m = (q-1) / (2*gamma2)
+
+        int m = (Parameters.Q - 1) / (2 * gamma2);
+
+        if (r0 > 0) {
+            return (r1 + 1) % m;
+        } else {
+            return (r1 - 1 + m) % m;
+        }
+>>>>>>> origin/anupsv/security-review
     }
 
     /**

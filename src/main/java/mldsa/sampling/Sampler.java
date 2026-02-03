@@ -66,30 +66,35 @@ public final class Sampler {
         byte[] stream = new byte[136];
         int streamIndex = stream.length;
 
-        while (coeffIndex < Parameters.N) {
-            if (streamIndex == stream.length) {
-                xof.digest(stream, 0, stream.length);
-                streamIndex = 0;
-            }
-            byte b = stream[streamIndex++];
-            int low = b & 0x0F;
-            int high = (b >>> 4) & 0x0F;
+        try {
+            while (coeffIndex < Parameters.N) {
+                if (streamIndex == stream.length) {
+                    xof.digest(stream, 0, stream.length);
+                    streamIndex = 0;
+                }
+                byte b = stream[streamIndex++];
+                int low = b & 0x0F;
+                int high = (b >>> 4) & 0x0F;
 
-            int coeff = coeffFromHalfByte(low, eta);
-            if (coeff != REJECT) {
-                coeffs[coeffIndex++] = toModQ(coeff);
-                if (coeffIndex == Parameters.N) {
-                    break;
+                int coeff = coeffFromHalfByte(low, eta);
+                if (coeff != REJECT) {
+                    coeffs[coeffIndex++] = toModQ(coeff);
+                    if (coeffIndex == Parameters.N) {
+                        break;
+                    }
+                }
+
+                coeff = coeffFromHalfByte(high, eta);
+                if (coeff != REJECT) {
+                    coeffs[coeffIndex++] = toModQ(coeff);
                 }
             }
 
-            coeff = coeffFromHalfByte(high, eta);
-            if (coeff != REJECT) {
-                coeffs[coeffIndex++] = toModQ(coeff);
-            }
+            return new Polynomial(coeffs);
+        } finally {
+            // Clear stream buffer containing derived secret material
+            ConstantTime.zero(stream);
         }
-
-        return new Polynomial(coeffs);
     }
 
     private static final int REJECT = Integer.MIN_VALUE;
@@ -213,17 +218,23 @@ public final class Sampler {
         int bytesNeeded = (gamma1Bits * Parameters.N + 7) / 8;
         byte[] stream = Shake.shake256(input, bytesNeeded);
 
-        int[] coeffs = new int[Parameters.N];
+        try {
+            int[] coeffs = new int[Parameters.N];
 
-        if (gamma1Bits == 18) {
-            // ML-DSA-44: 4 coefficients from 9 bytes (4 * 18 = 72 bits = 9 bytes)
-            unpackGamma1_18bit(stream, coeffs, gamma1);
-        } else {
-            // ML-DSA-65/87: 2 coefficients from 5 bytes (2 * 20 = 40 bits = 5 bytes)
-            unpackGamma1_20bit(stream, coeffs, gamma1);
+            if (gamma1Bits == 18) {
+                // ML-DSA-44: 4 coefficients from 9 bytes (4 * 18 = 72 bits = 9 bytes)
+                unpackGamma1_18bit(stream, coeffs, gamma1);
+            } else {
+                // ML-DSA-65/87: 2 coefficients from 5 bytes (2 * 20 = 40 bits = 5 bytes)
+                unpackGamma1_20bit(stream, coeffs, gamma1);
+            }
+
+            return new Polynomial(coeffs);
+        } finally {
+            // Clear intermediate buffers containing derived secret material
+            ConstantTime.zero(input);
+            ConstantTime.zero(stream);
         }
-
-        return new Polynomial(coeffs);
     }
 
     /**

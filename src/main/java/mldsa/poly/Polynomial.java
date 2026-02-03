@@ -170,7 +170,11 @@ public final class Polynomial {
 
     @Override
     public String toString() {
+<<<<<<< HEAD
         // Don't expose coefficient values to prevent accidental information leakage
         return "Polynomial[" + coeffs.length + " coefficients]";
+=======
+        return "Polynomial" + Arrays.toString(Arrays.copyOf(coeffs, Math.min(8, coeffs.length))) + "...";
+>>>>>>> origin/anupsv/security-review
     }
 }

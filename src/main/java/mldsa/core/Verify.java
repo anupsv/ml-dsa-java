@@ -100,14 +100,22 @@ public final class Verify {
 
         // Transform back from NTT
         PolyOps.invNttVector(wPrimeNtt);
+<<<<<<< HEAD
         PolyOps.reduceVector(wPrimeNtt);  // Reduce to [0, Q) after inverse NTT
+=======
+        reduceVector(wPrimeNtt);  // Reduce to [0, Q) after inverse NTT
+>>>>>>> origin/anupsv/security-review
 
         // Step 9: Use hints to recover w1
         PolynomialVector w1Prime = UseHint.useHint(h, wPrimeNtt, gamma2);
 
         // Step 10: Compute expected challenge c_tilde' = H(mu || w1'_encoded)
         // c_tilde length is lambda/4 bytes per FIPS 204
+<<<<<<< HEAD
         byte[] w1PrimeEncoded = BitPacker.encodeW1(w1Prime, params);
+=======
+        byte[] w1PrimeEncoded = encodeW1(w1Prime, params);
+>>>>>>> origin/anupsv/security-review
         byte[] cTildePrime = Shake.shake256(params.cTildeBytes(), mu, w1PrimeEncoded);
 
         // Step 11: Check c_tilde == c_tilde'
@@ -115,6 +123,18 @@ public final class Verify {
     }
 
     /**
+<<<<<<< HEAD
+=======
+     * Reduces all polynomials in a vector to [0, Q).
+     */
+    private static void reduceVector(PolynomialVector v) {
+        for (Polynomial p : v.polynomials()) {
+            PolyOps.reduce(p);
+        }
+    }
+
+    /**
+>>>>>>> origin/anupsv/security-review
      * Scales a polynomial vector by 2^d.
      */
     private static PolynomialVector scaleByPowerOf2(PolynomialVector v, int d) {
@@ -124,4 +144,27 @@ public final class Verify {
         }
         return new PolynomialVector(result);
     }
+<<<<<<< HEAD
+=======
+
+    /**
+     * Encodes w1 for hashing (same as in Sign).
+     */
+    private static byte[] encodeW1(PolynomialVector w1, Parameters params) {
+        int gamma2 = params.gamma2();
+        int w1Bits = (gamma2 == (Parameters.Q - 1) / 88) ? 6 : 4;
+
+        int polyBytes = (Parameters.N * w1Bits + 7) / 8;
+        byte[] result = new byte[w1.dimension() * polyBytes];
+
+        int offset = 0;
+        for (int i = 0; i < w1.dimension(); i++) {
+            byte[] packed = BitPacker.pack(w1.get(i), w1Bits);
+            System.arraycopy(packed, 0, result, offset, packed.length);
+            offset += polyBytes;
+        }
+
+        return result;
+    }
+>>>>>>> origin/anupsv/security-review
 }

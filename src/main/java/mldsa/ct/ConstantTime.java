@@ -143,14 +143,20 @@ public final class ConstantTime {
     /**
      * Constant-time byte array comparison.
      * Returns true if arrays are equal (same length and same contents), false otherwise.
+<<<<<<< HEAD
      * Always iterates over the maximum length to avoid timing leaks based on array sizes.
      * Uses branchless index clamping to safely access both arrays.
+=======
+     * Always examines all bytes of the shorter array regardless of when a difference is found.
+     * The length comparison is also folded into the result to avoid early exit timing leak.
+>>>>>>> origin/anupsv/security-review
      *
      * @param a first array
      * @param b second array
      * @return true if arrays are equal
      */
     public static boolean arraysEqual(byte[] a, byte[] b) {
+<<<<<<< HEAD
         // Handle empty array edge cases
         if (a.length == 0 && b.length == 0) {
             return true;
@@ -192,6 +198,13 @@ public final class ConstantTime {
         }
         int diff = 0;
         for (int i = 0; i < a.length; i++) {
+=======
+        // Fold length difference into result (non-zero if lengths differ)
+        int diff = a.length ^ b.length;
+        // Compare all bytes up to the minimum length
+        int minLen = Math.min(a.length, b.length);
+        for (int i = 0; i < minLen; i++) {
+>>>>>>> origin/anupsv/security-review
             diff |= a[i] ^ b[i];
         }
         return diff == 0;
