@@ -8,10 +8,18 @@ import mldsa.params.Parameters;
 import mldsa.poly.Polynomial;
 import mldsa.poly.PolyOps;
 import mldsa.poly.PolynomialVector;
+<<<<<<< HEAD
 import mldsa.ct.SecureRandomHolder;
 import mldsa.sampling.ExpandA;
 import mldsa.sampling.Sampler;
 
+=======
+import mldsa.sampling.ExpandA;
+import mldsa.sampling.Sampler;
+
+import java.security.SecureRandom;
+
+>>>>>>> origin/anupsv/security-review
 /**
  * ML-DSA Key Generation (Algorithm 1 in FIPS 204).
  * Generates a public/private key pair from a random seed.
@@ -33,7 +41,11 @@ public final class KeyGen {
      */
     public static byte[][] generate(Parameters params) {
         byte[] seed = new byte[SEED_BYTES];
+<<<<<<< HEAD
         SecureRandomHolder.nextBytes(seed);
+=======
+        new SecureRandom().nextBytes(seed);
+>>>>>>> origin/anupsv/security-review
         return generate(params, seed);
     }
 
@@ -86,11 +98,19 @@ public final class KeyGen {
 
         // Transform back from NTT domain
         PolyOps.invNttVector(t);
+<<<<<<< HEAD
         PolyOps.reduceVector(t);  // Reduce to [0, Q) after inverse NTT
 
         // Add s2
         t = PolyOps.add(t, s2);
         PolyOps.reduceVector(t);  // Reduce to [0, Q) before Power2Round
+=======
+        reduceVector(t);  // Reduce to [0, Q) after inverse NTT
+
+        // Add s2
+        t = PolyOps.add(t, s2);
+        reduceVector(t);  // Reduce to [0, Q) before Power2Round
+>>>>>>> origin/anupsv/security-review
 
         // Step 6: Power2Round to get t1 (high bits) and t0 (low bits)
         PolynomialVector[] tParts = Power2Round.round(t);
@@ -130,4 +150,16 @@ public final class KeyGen {
 
         return new PolynomialVector(result);
     }
+<<<<<<< HEAD
+=======
+
+    /**
+     * Reduces all polynomials in a vector to [0, Q).
+     */
+    private static void reduceVector(PolynomialVector v) {
+        for (Polynomial p : v.polynomials()) {
+            PolyOps.reduce(p);
+        }
+    }
+>>>>>>> origin/anupsv/security-review
 }

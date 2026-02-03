@@ -142,7 +142,10 @@ public final class PolyOps {
     /**
      * Multiplies two polynomials using NTT.
      * Computes a * b in R_q = Z_q[X]/(X^n + 1).
+<<<<<<< HEAD
      * Temporary NTT copies are securely zeroed after use.
+=======
+>>>>>>> origin/anupsv/security-review
      *
      * @param a first polynomial (standard form)
      * @param b second polynomial (standard form)
@@ -152,6 +155,7 @@ public final class PolyOps {
         // Transform both to NTT domain
         Polynomial aNtt = a.copy();
         Polynomial bNtt = b.copy();
+<<<<<<< HEAD
         try {
             NTT.forward(aNtt);
             NTT.forward(bNtt);
@@ -168,6 +172,18 @@ public final class PolyOps {
             aNtt.destroy();
             bNtt.destroy();
         }
+=======
+        NTT.forward(aNtt);
+        NTT.forward(bNtt);
+
+        // Pointwise multiply
+        Polynomial result = pointwiseMultiply(aNtt, bNtt);
+
+        // Transform back
+        NTT.inverse(result);
+
+        return result;
+>>>>>>> origin/anupsv/security-review
     }
 
     /**
@@ -262,6 +278,7 @@ public final class PolyOps {
     }
 
     /**
+<<<<<<< HEAD
      * Reduces all coefficients in each polynomial to [0, q).
      * Used after operations that may produce values outside this range.
      *
@@ -274,6 +291,8 @@ public final class PolyOps {
     }
 
     /**
+=======
+>>>>>>> origin/anupsv/security-review
      * Inner product of two polynomial vectors in NTT domain.
      * Returns sum of pointwise products: result = sum(a[i] * b[i]).
      *

@@ -109,8 +109,9 @@ class MLDSAIntegrationTests {
         MLDSAKeyPair keyPair = MLDSA.generateKeyPair(MLDSAParameterSet.ML_DSA_65, seed);
         byte[] message = "Test message".getBytes();
 
-        MLDSASignature sig1 = MLDSA.sign(keyPair.privateKey(), message, rnd);
-        MLDSASignature sig2 = MLDSA.sign(keyPair.privateKey(), message, rnd);
+        // Use signRaw for deterministic testing (no domain separation)
+        MLDSASignature sig1 = MLDSA.signRaw(keyPair.privateKey(), message, rnd);
+        MLDSASignature sig2 = MLDSA.signRaw(keyPair.privateKey(), message, rnd);
 
         assertArrayEquals(sig1.encoded(), sig2.encoded(),
                 "Same randomness should produce same signature");

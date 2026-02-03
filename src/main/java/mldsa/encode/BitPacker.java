@@ -48,6 +48,7 @@ public final class BitPacker {
      * @param data the packed bytes
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial
+<<<<<<< HEAD
      * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static Polynomial unpack(byte[] data, int bits) {
@@ -59,6 +60,10 @@ public final class BitPacker {
             throw new IllegalArgumentException("Insufficient data length for unpacking");
         }
 
+=======
+     */
+    public static Polynomial unpack(byte[] data, int bits) {
+>>>>>>> origin/anupsv/security-review
         int[] coeffs = new int[Parameters.N];
 
         int bitIndex = 0;
@@ -105,6 +110,7 @@ public final class BitPacker {
      * @param dimension the vector dimension
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial vector
+<<<<<<< HEAD
      * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static PolynomialVector unpackVector(byte[] data, int dimension, int bits) {
@@ -118,6 +124,11 @@ public final class BitPacker {
             throw new IllegalArgumentException("Insufficient data length for unpacking vector");
         }
 
+=======
+     */
+    public static PolynomialVector unpackVector(byte[] data, int dimension, int bits) {
+        int polyBytes = (Parameters.N * bits + 7) / 8;
+>>>>>>> origin/anupsv/security-review
         Polynomial[] polys = new Polynomial[dimension];
 
         for (int i = 0; i < dimension; i++) {
@@ -171,6 +182,7 @@ public final class BitPacker {
      * @param bound the coefficient bound
      * @param bits the number of bits per coefficient
      * @return the unpacked polynomial with coefficients in [0, q)
+<<<<<<< HEAD
      * @throws IllegalArgumentException if data is null or has insufficient length
      */
     public static Polynomial unpackCentered(byte[] data, int bound, int bits) {
@@ -182,6 +194,10 @@ public final class BitPacker {
             throw new IllegalArgumentException("Insufficient data length for unpacking");
         }
 
+=======
+     */
+    public static Polynomial unpackCentered(byte[] data, int bound, int bits) {
+>>>>>>> origin/anupsv/security-review
         int[] coeffs = new int[Parameters.N];
 
         int bitIndex = 0;
@@ -274,6 +290,7 @@ public final class BitPacker {
 
         return new PolynomialVector(polys);
     }
+<<<<<<< HEAD
 
     /**
      * Encodes w1 polynomial vector for hashing in sign/verify.
@@ -301,4 +318,6 @@ public final class BitPacker {
 
         return result;
     }
+=======
+>>>>>>> origin/anupsv/security-review
 }

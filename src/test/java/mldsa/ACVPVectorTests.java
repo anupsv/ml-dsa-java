@@ -68,7 +68,8 @@ class ACVPVectorTests {
                 }
 
                 MLDSAPrivateKey privateKey = new MLDSAPrivateKey(params, skBytes);
-                MLDSASignature signature = MLDSA.sign(privateKey, message, rnd);
+                // Use signRaw for ACVP vectors (no domain separation)
+                MLDSASignature signature = MLDSA.signRaw(privateKey, message, rnd);
 
                 assertArrayEquals(expectedSignature, signature.encoded(),
                         "SigGen mismatch: tgId=" + tgId + " tcId=" + tcId + " params=" + params);
@@ -92,7 +93,8 @@ class ACVPVectorTests {
 
                 boolean actual;
                 try {
-                    actual = MLDSA.verify(params, publicKey, message, signature);
+                    // Use verifyRaw for ACVP vectors (no domain separation)
+                    actual = MLDSA.verifyRaw(params, publicKey, message, signature);
                 } catch (IllegalArgumentException e) {
                     actual = false;
                 }
